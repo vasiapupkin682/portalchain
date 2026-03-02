@@ -1,0 +1,12 @@
+syntax = "proto3";
+package portalchain.portalchain;
+
+import "gogoproto/gogo.proto";
+import "portalchain/portalchain/params.proto";
+
+option go_package = "portalchain/x/portalchain/types";
+
+// GenesisState defines the portalchain module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
