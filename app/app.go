@@ -113,6 +113,10 @@ import (
 	portalchainmodule "portalchain/x/portalchain"
 	portalchainmodulekeeper "portalchain/x/portalchain/keeper"
 	portalchainmoduletypes "portalchain/x/portalchain/types"
+
+	poimodule "portalchain/x/poi"
+	poimodulekeeper "portalchain/x/poi/keeper"
+	poimoduletypes "portalchain/x/poi/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	appparams "portalchain/app/params"
@@ -174,6 +178,7 @@ var (
 		vesting.AppModuleBasic{},
 		consensus.AppModuleBasic{},
 		portalchainmodule.AppModuleBasic{},
+		poimodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -250,6 +255,7 @@ type App struct {
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper
 
 	PortalchainKeeper portalchainmodulekeeper.Keeper
+	PoiKeeper         poimodulekeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// mm is the module manager
@@ -297,6 +303,7 @@ func New(
 		feegrant.StoreKey, evidencetypes.StoreKey, ibctransfertypes.StoreKey, icahosttypes.StoreKey,
 		capabilitytypes.StoreKey, group.StoreKey, icacontrollertypes.StoreKey, consensusparamtypes.StoreKey,
 		portalchainmoduletypes.StoreKey,
+		poimoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -527,6 +534,14 @@ func New(
 	)
 	portalchainModule := portalchainmodule.NewAppModule(appCodec, app.PortalchainKeeper, app.AccountKeeper, app.BankKeeper)
 
+	app.PoiKeeper = *poimodulekeeper.NewKeeper(
+		appCodec,
+		keys[poimoduletypes.StoreKey],
+		app.StakingKeeper,
+		app.BankKeeper,
+	)
+	poiModule := poimodule.NewAppModule(appCodec, app.PoiKeeper, app.AccountKeeper, app.BankKeeper)
+
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	/**** IBC Routing ****/
@@ -547,9 +562,9 @@ func New(
 
 	app.StakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
-			// insert staking hooks receivers here
 			app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
+			app.PoiKeeper.Hooks(),
 		),
 	)
 
@@ -589,6 +604,7 @@ func New(
 		transferModule,
 		icaModule,
 		portalchainModule,
+		poiModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 
 		crisis.NewAppModule(app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)), // always be last to make sure that it checks for all invariants and not only part of them
@@ -622,6 +638,7 @@ func New(
 		vestingtypes.ModuleName,
 		consensusparamtypes.ModuleName,
 		portalchainmoduletypes.ModuleName,
+		poimoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/beginBlockers
 	)
 
@@ -648,6 +665,7 @@ func New(
 		vestingtypes.ModuleName,
 		consensusparamtypes.ModuleName,
 		portalchainmoduletypes.ModuleName,
+		poimoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/endBlockers
 	)
 
@@ -679,6 +697,7 @@ func New(
 		vestingtypes.ModuleName,
 		consensusparamtypes.ModuleName,
 		portalchainmoduletypes.ModuleName,
+		poimoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	}
 	app.mm.SetOrderInitGenesis(genesisModuleOrder...)

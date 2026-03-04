@@ -1,0 +1,12 @@
+syntax = "proto3";
+package portalchain.poi;
+
+import "gogoproto/gogo.proto";
+import "portalchain/poi/epoch_report.proto";
+
+option go_package = "portalchain/x/poi/types";
+
+message GenesisState {
+  repeated EpochReport reports = 1 [(gogoproto.nullable) = false];
+  repeated Reputation reputations = 2 [(gogoproto.nullable) = false];
+}

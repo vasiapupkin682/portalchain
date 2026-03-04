@@ -1,0 +1,50 @@
+syntax = "proto3";
+package portalchain.poi;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "portalchain/poi/epoch_report.proto";
+
+option go_package = "portalchain/x/poi/types";
+
+service Query {
+  rpc EpochReport(QueryEpochReportRequest) returns (QueryEpochReportResponse) {
+    option (google.api.http).get = "/portalchain/poi/report/{epoch}/{validator}";
+  }
+
+  rpc ValidatorReputation(QueryValidatorReputationRequest) returns (QueryValidatorReputationResponse) {
+    option (google.api.http).get = "/portalchain/poi/reputation/{validator}";
+  }
+
+  rpc ReportsByValidator(QueryReportsByValidatorRequest) returns (QueryReportsByValidatorResponse) {
+    option (google.api.http).get = "/portalchain/poi/reports/{validator}";
+  }
+}
+
+message QueryEpochReportRequest {
+  int64 epoch = 1;
+  string validator = 2;
+}
+
+message QueryEpochReportResponse {
+  EpochReport report = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryValidatorReputationRequest {
+  string validator = 1;
+}
+
+message QueryValidatorReputationResponse {
+  Reputation reputation = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryReportsByValidatorRequest {
+  string validator = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+message QueryReportsByValidatorResponse {
+  repeated EpochReport reports = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}

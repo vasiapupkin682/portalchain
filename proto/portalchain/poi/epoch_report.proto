@@ -1,0 +1,28 @@
+syntax = "proto3";
+package portalchain.poi;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "portalchain/x/poi/types";
+
+message EpochReport {
+  int64 epoch = 1;
+  string validator = 2;
+  int64 tasks_processed = 3;
+  int64 weighted_task_sum = 4;
+  int64 avg_latency = 5;
+  string reliability = 6 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+  int64 sampling_failures = 7;
+  int64 timestamp = 8;
+}
+
+message Reputation {
+  string validator = 1;
+  string value = 2 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+}
