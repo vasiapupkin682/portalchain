@@ -34,16 +34,15 @@ func (k msgServer) SubmitEpochReport(goCtx context.Context, msg *types.MsgSubmit
 	}
 
 	k.SetEpochReport(ctx, report)
-
-	if err := k.UpdateReputation(ctx, report); err != nil {
-		return nil, err
-	}
+	k.UpdateReputation(ctx, report)
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"submit_epoch_report",
 			sdk.NewAttribute("epoch", strconv.FormatInt(msg.Epoch, 10)),
 			sdk.NewAttribute("validator", msg.Validator),
+			sdk.NewAttribute("tasks_processed", strconv.FormatInt(msg.TasksProcessed, 10)),
+			sdk.NewAttribute("reliability", msg.Reliability.String()),
 		),
 	)
 

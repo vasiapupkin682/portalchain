@@ -39,7 +39,8 @@ func (h Hooks) AfterValidatorBonded(ctx sdk.Context, consAddr sdk.ConsAddress, v
 	if !found {
 		return nil
 	}
-	return h.k.adjustValidatorPower(ctx, valAddr.String(), rep.Value)
+	h.k.adjustValidatorPower(ctx, valAddr.String(), rep.Value)
+	return nil
 }
 
 func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, consAddr sdk.ConsAddress, valAddr sdk.ValAddress) error {

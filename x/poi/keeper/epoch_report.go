@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -67,9 +66,10 @@ func (k Keeper) GetAllEpochReports(ctx sdk.Context) []types.EpochReport {
 	return reports
 }
 
-func (k Keeper) UpdateReputation(ctx sdk.Context, report types.EpochReport) error {
+func (k Keeper) UpdateReputation(ctx sdk.Context, report types.EpochReport) {
 	currentRep, _ := k.GetReputation(ctx, report.Validator)
 
+	// report.Reliability is sdk.Dec (gogoproto customtype), use it directly
 	taskScore := sdk.NewDec(report.TasksProcessed)
 	failurePenalty := sdk.NewDec(report.SamplingFailures).Mul(sdk.NewDecWithPrec(1, 1)) // 0.1 per failure
 
@@ -94,19 +94,27 @@ func (k Keeper) UpdateReputation(ctx sdk.Context, report types.EpochReport) erro
 	currentRep.Value = newRep
 	k.SetReputation(ctx, currentRep)
 
-	if err := k.adjustValidatorPower(ctx, report.Validator, newRep); err != nil {
-		return fmt.Errorf("failed to adjust validator power: %w", err)
-	}
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			"poi_reputation_updated",
+			sdk.NewAttribute("validator", report.Validator),
+			sdk.NewAttribute("old_reputation", currentRep.Value.String()),
+			sdk.NewAttribute("new_reputation", newRep.String()),
+			sdk.NewAttribute("raw_score", rawScore.String()),
+		),
+	)
 
-	return nil
+	// Power adjustment is best-effort; never roll back a report over it
+	k.adjustValidatorPower(ctx, report.Validator, newRep)
 }
 
-func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep sdk.Dec) error {
+func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep sdk.Dec) {
 	valAddr, err := sdk.ValAddressFromBech32(validator)
 	if err != nil {
 		accAddr, accErr := sdk.AccAddressFromBech32(validator)
 		if accErr != nil {
-			return fmt.Errorf("invalid address: %s", validator)
+			k.Logger(ctx).Error("adjustValidatorPower: unparseable address", "validator", validator, "err", err)
+			return
 		}
 		valAddr = sdk.ValAddress(accAddr)
 	}
@@ -114,13 +122,14 @@ func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep s
 	val, found := k.stakingKeeper.GetValidator(ctx, valAddr)
 	if !found {
 		k.Logger(ctx).Info("validator not found for power adjustment, skipping", "validator", validator)
-		return nil
+		return
 	}
 
 	stake := sdk.NewDecFromInt(val.GetTokens())
 	sqrtStake, err := stake.ApproxSqrt()
 	if err != nil {
-		return fmt.Errorf("failed to compute sqrt: %w", err)
+		k.Logger(ctx).Error("adjustValidatorPower: sqrt failed", "validator", validator, "err", err)
+		return
 	}
 
 	effectivePower := sqrtStake.Mul(sdk.OneDec().Add(newRep))
@@ -133,8 +142,6 @@ func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep s
 			sdk.NewAttribute("reputation", newRep.String()),
 		),
 	)
-
-	return nil
 }
 
 func (k Keeper) ShouldSample(ctx sdk.Context, seed []byte) bool {
