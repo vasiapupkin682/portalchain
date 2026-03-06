@@ -36,10 +36,33 @@ func (k msgServer) SubmitEpochReport(goCtx context.Context, msg *types.MsgSubmit
 	k.SetEpochReport(ctx, report)
 	k.UpdateReputation(ctx, report)
 
+	epochStr := strconv.FormatInt(msg.Epoch, 10)
+	k.Logger(ctx).Info("🔴 SAMPLING CHECK START", "epoch", msg.Epoch)
+
+	samplingResult := k.ShouldSample(ctx, []byte(epochStr))
+
+	k.Logger(ctx).Info("🔵 SAMPLING CHECK RESULT",
+		"epoch", msg.Epoch,
+		"result", samplingResult,
+	)
+
+	if samplingResult {
+		ctx.EventManager().EmitEvent(
+			sdk.NewEvent("sampling_selected",
+				sdk.NewAttribute("epoch", epochStr),
+				sdk.NewAttribute("validator", msg.Validator),
+			),
+		)
+		k.Logger(ctx).Info("✅ SAMPLING TRIGGERED",
+			"epoch", msg.Epoch,
+			"validator", msg.Validator,
+		)
+	}
+
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"submit_epoch_report",
-			sdk.NewAttribute("epoch", strconv.FormatInt(msg.Epoch, 10)),
+			sdk.NewAttribute("epoch", epochStr),
 			sdk.NewAttribute("validator", msg.Validator),
 			sdk.NewAttribute("tasks_processed", strconv.FormatInt(msg.TasksProcessed, 10)),
 			sdk.NewAttribute("reliability", msg.Reliability.String()),

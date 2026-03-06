@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -146,10 +147,31 @@ func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep s
 
 func (k Keeper) ShouldSample(ctx sdk.Context, seed []byte) bool {
 	appHash := ctx.BlockHeader().AppHash
-	combined := append(appHash, seed...)
+
+	// Copy to avoid mutating the block header's backing array.
+	combined := make([]byte, len(appHash)+len(seed))
+	copy(combined, appHash)
+	copy(combined[len(appHash):], seed)
+
 	var sum uint64
 	for _, b := range combined {
 		sum += uint64(b)
 	}
-	return sum%10 == 0
+
+	result := sum%10 == 0
+
+	hashHex := fmt.Sprintf("%x", appHash)
+	if len(appHash) > 8 {
+		hashHex = fmt.Sprintf("%x", appHash[:8])
+	}
+
+	k.Logger(ctx).Info("ShouldSample evaluated",
+		"app_hash", hashHex,
+		"seed", fmt.Sprintf("%x", seed),
+		"sum", sum,
+		"mod10", sum%10,
+		"selected", result,
+	)
+
+	return result
 }

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Цвета для вывода
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}🔍 Начинаем проверку random sampling...${NC}"
+echo ""
+
+ALICE=$(portalchaind keys show alice -a)
+TOTAL_TX=0
+SAMPLING_TX=0
+
+# Отправляем 30 транзакций
+for i in {1..30}; do
+    EPOCH=$((100 + i))
+    echo -ne "🔄 Отправляю эпоху $EPOCH... "
+    
+    # Отправляем транзакцию и получаем хеш
+    TX_HASH=$(portalchaind tx poi submit-report \
+        --epoch $EPOCH \
+        --tasks-processed 100 \
+        --weighted-task-sum 5000 \
+        --avg-latency 150 \
+        --reliability 0.95 \
+        --sampling-failures 0 \
+        --from alice \
+        --chain-id portalchain \
+        --yes --output json 2>/dev/null | jq -r .txhash)
+    
+    sleep 2
+    
+    # Проверяем, был ли sampling
+    HAS_SAMPLING=$(portalchaind query tx $TX_HASH --output json 2>/dev/null | grep -c "sampling_selected")
+    
+    TOTAL_TX=$((TOTAL_TX + 1))
+    if [ "$HAS_SAMPLING" -gt 0 ]; then
+        SAMPLING_TX=$((SAMPLING_TX + 1))
+        echo -e "${GREEN}✅ SAMPLING СРАБОТАЛ!${NC}"
+    else
+        echo -e "${RED}❌ Sampling не сработал${NC}"
+    fi
+done
+
+# Выводим статистику
+echo ""
+echo -e "${YELLOW}📊 СТАТИСТИКА:${NC}"
+echo "   Всего транзакций: $TOTAL_TX"
+echo "   Sampling сработал: $SAMPLING_TX"
+if [ $TOTAL_TX -gt 0 ]; then
+    PERCENT=$((SAMPLING_TX * 100 / TOTAL_TX))
+    echo "   Процент: ${PERCENT}%"
+    
+    if [ $PERCENT -ge 8 ] && [ $PERCENT -le 12 ]; then
+        echo -e "${GREEN}✅ Отлично! Sampling работает в пределах нормы (8-12%)${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Процент немного отклоняется от ожидаемых 10% (нормально для малой выборки)${NC}"
+    fi
+fi
