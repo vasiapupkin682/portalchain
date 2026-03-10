@@ -1,13 +1,14 @@
 package types
 
 const (
-	ModuleName = "poi"
-	StoreKey   = ModuleName
-	RouterKey  = ModuleName
+	ModuleName  = "poi"
+	StoreKey    = ModuleName
+	RouterKey   = ModuleName
 	MemStoreKey = "mem_poi"
 
 	EpochReportPrefix = "EpochReport:"
 	ReputationPrefix  = "Reputation:"
+	SamplingPrefix    = "Sampling:"
 )
 
 func KeyPrefix(p string) []byte {

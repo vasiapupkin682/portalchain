@@ -9,13 +9,15 @@ import (
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgSubmitEpochReport{}, "poi/MsgSubmitEpochReport", nil)
+	cdc.RegisterConcrete(&MsgVerifySampling{}, "poi/MsgVerifySampling", nil)
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgSubmitEpochReport{},
+		&MsgVerifySampling{},
 	)
-	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
+	msgservice.RegisterMsgServiceDesc(registry, &_FullMsg_serviceDesc)
 }
 
 var (

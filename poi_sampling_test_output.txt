@@ -1,0 +1,31 @@
+?   	portalchain/x/poi	[no test files]
+?   	portalchain/x/poi/client/cli	[no test files]
+?   	portalchain/x/poi/types	[no test files]
+=== RUN   TestSubmitEpochReport_SamplingDeferred
+--- PASS: TestSubmitEpochReport_SamplingDeferred (0.00s)
+=== RUN   TestSubmitEpochReport_NoSampling
+--- PASS: TestSubmitEpochReport_NoSampling (0.00s)
+=== RUN   TestVerifySampling_Passed
+--- PASS: TestVerifySampling_Passed (0.00s)
+=== RUN   TestVerifySampling_Failed
+--- PASS: TestVerifySampling_Failed (0.00s)
+=== RUN   TestVerifySampling_Errors
+=== RUN   TestVerifySampling_Errors/non-existent_record_→_ErrSamplingNotFound
+=== RUN   TestVerifySampling_Errors/expired_record_→_ErrSamplingExpired
+=== RUN   TestVerifySampling_Errors/self-verification_→_ErrSelfVerification
+=== RUN   TestVerifySampling_Errors/already_resolved_→_ErrSamplingAlreadyResolved
+--- PASS: TestVerifySampling_Errors (0.00s)
+    --- PASS: TestVerifySampling_Errors/non-existent_record_→_ErrSamplingNotFound (0.00s)
+    --- PASS: TestVerifySampling_Errors/expired_record_→_ErrSamplingExpired (0.00s)
+    --- PASS: TestVerifySampling_Errors/self-verification_→_ErrSelfVerification (0.00s)
+    --- PASS: TestVerifySampling_Errors/already_resolved_→_ErrSamplingAlreadyResolved (0.00s)
+=== RUN   TestSamplingRecord_SetGet
+--- PASS: TestSamplingRecord_SetGet (0.00s)
+=== RUN   TestGetPendingSamplingRecords
+--- PASS: TestGetPendingSamplingRecords (0.00s)
+=== RUN   TestExpirePendingSamplings
+--- PASS: TestExpirePendingSamplings (0.00s)
+=== RUN   TestExpirePendingSamplings_NotExpiredYet
+--- PASS: TestExpirePendingSamplings_NotExpiredYet (0.00s)
+PASS
+ok  	portalchain/x/poi/keeper	0.034s
