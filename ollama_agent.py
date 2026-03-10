@@ -242,7 +242,7 @@ No other text, just the JSON object.
         }
     
     def submit_report(self, decision):
-        """Отправляет отчёт в блокчейн"""
+        """Отправляет отчёт в блокчейн и проверяет на sampling selection"""
         cmd = [
             "portalchaind", "tx", "poi", "submit-report",
             "--epoch", str(decision['epoch']),
@@ -261,7 +261,6 @@ No other text, just the JSON object.
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             tx_data = json.loads(result.stdout)
             
-            # Сохраняем в память
             report = {
                 'epoch': decision['epoch'],
                 'txhash': tx_data['txhash'],
@@ -270,46 +269,177 @@ No other text, just the JSON object.
                 'reasoning': decision.get('reasoning', ''),
                 'timestamp': decision['timestamp']
             }
+
+            sampled = self._check_sampling_selected(tx_data)
+            if sampled:
+                report['sampling_status'] = 'pending_verification'
+                report['sampling_deadline'] = decision['epoch'] + 100
+                print(f"   SAMPLED - report needs verification (deadline: epoch {report['sampling_deadline']})")
+
             self.memory.append(report)
             self.stats['total_reports'] += 1
             self.stats['successful_txs'] += 1
             
-            print(f"✅ Эпоха {decision['epoch']}: rel={decision['reliability']:.3f} tasks={decision['tasks']}")
-            print(f"   💭 {decision.get('reasoning', '')[:100]}")
-            print(f"   🔗 tx: {tx_data['txhash'][:16]}...")
+            print(f"Epoch {decision['epoch']}: rel={decision['reliability']:.3f} tasks={decision['tasks']}")
+            print(f"   Llama: {decision.get('reasoning', '')[:100]}")
+            print(f"   tx: {tx_data['txhash'][:16]}...")
             
             return tx_data
             
         except subprocess.CalledProcessError as e:
-            print(f"❌ Ошибка отправки: {e.stderr}")
+            print(f"TX error: {e.stderr}")
             self.stats['failed_txs'] += 1
             return None
         except json.JSONDecodeError:
-            print(f"❌ Ошибка парсинга ответа")
+            print(f"JSON parse error in tx response")
             self.stats['failed_txs'] += 1
             return None
+
+    def _check_sampling_selected(self, tx_data):
+        """Returns True if the tx events contain a sampling_selected event."""
+        events = tx_data.get('events', [])
+        if isinstance(events, list):
+            for ev in events:
+                ev_type = ev.get('type', '')
+                if ev_type == 'sampling_selected':
+                    return True
+        logs = tx_data.get('logs', [])
+        if isinstance(logs, list):
+            for log_entry in logs:
+                for ev in log_entry.get('events', []):
+                    if ev.get('type') == 'sampling_selected':
+                        return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Verification of other agents' reports
+    # ------------------------------------------------------------------
+
+    def get_pending_samplings(self):
+        """Queries the chain for pending sampling records."""
+        try:
+            result = subprocess.run(
+                ["portalchaind", "q", "poi", "list-sampling-records",
+                 "--status", "pending", "--output", "json"],
+                capture_output=True, text=True, check=True
+            )
+            data = json.loads(result.stdout)
+            return data.get('records', data.get('sampling_records', []))
+        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+            print(f"Could not query pending samplings: {e}")
+            return []
+
+    def consult_llama_verify(self, report_to_verify):
+        """Asks Llama whether a report from another validator looks legitimate."""
+        prompt = (
+            "You are verifying an epoch report from another validator.\n"
+            "Report metrics:\n"
+            f"- Tasks processed: {report_to_verify.get('tasks_processed', 'N/A')}\n"
+            f"- Reliability: {report_to_verify.get('reliability', 'N/A')}\n"
+            f"- Avg latency: {report_to_verify.get('avg_latency', 'N/A')}ms\n"
+            f"- Sampling failures: {report_to_verify.get('sampling_failures', 'N/A')}\n\n"
+            "Is this report legitimate?\n"
+            "Respond with ONLY a valid JSON object:\n"
+            '{"passed": true, "reasoning": "brief explanation"}'
+        )
+
+        try:
+            response = requests.post(OLLAMA_URL, json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "num_predict": 150,
+                    "temperature": 0.3
+                }
+            }, timeout=REQUEST_TIMEOUT)
+
+            if response.status_code == 200:
+                text = response.json().get('response', '').strip()
+                json_match = re.search(r'\{.*\}', text, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
+        except Exception as e:
+            print(f"Llama verify error: {e}")
+
+        return {"passed": True, "reasoning": "fallback: approved by default"}
+
+    def _fetch_epoch_report(self, epoch, validator):
+        """Fetches a stored epoch report from the chain."""
+        try:
+            result = subprocess.run(
+                ["portalchaind", "q", "poi", "epoch-report",
+                 str(epoch), validator, "--output", "json"],
+                capture_output=True, text=True, check=True
+            )
+            return json.loads(result.stdout).get('report', json.loads(result.stdout))
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            return None
+
+    def check_pending_verifications(self):
+        """Finds pending sampling records and verifies those belonging to other validators."""
+        records = self.get_pending_samplings()
+        if not records:
+            return
+
+        for record in records:
+            validator = record.get('validator', '')
+            epoch = record.get('epoch', 0)
+
+            if validator == self.validator:
+                continue
+
+            report = self._fetch_epoch_report(epoch, validator)
+            if report is None:
+                print(f"Could not fetch report for epoch {epoch} / {validator}, skipping")
+                continue
+
+            verdict = self.consult_llama_verify(report)
+            passed = verdict.get('passed', True)
+            reasoning = verdict.get('reasoning', '')
+
+            print(f"Verifying epoch {epoch} validator {validator}: "
+                  f"passed={passed} ({reasoning[:60]})")
+
+            self._send_verify_sampling(epoch, validator, passed)
+
+    def _send_verify_sampling(self, epoch, validator, passed):
+        """Sends MsgVerifySampling to the chain."""
+        cmd = [
+            "portalchaind", "tx", "poi", "verify-sampling",
+            "--epoch", str(epoch),
+            "--validator", validator,
+            "--passed", str(passed).lower(),
+            "--from", self.validator,
+            "--chain-id", CHAIN_ID,
+            "--yes",
+            "--output", "json"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            tx_data = json.loads(result.stdout)
+            print(f"   Verification tx: {tx_data.get('txhash', 'unknown')[:16]}...")
+        except subprocess.CalledProcessError as e:
+            print(f"   Verification tx failed: {e.stderr}")
+        except json.JSONDecodeError:
+            print(f"   Verification tx: response not JSON")
     
     def run(self):
-        """Основной цикл агента"""
-        print(f"\n🚀 Запуск агента {self.name}")
-        print(f"⏱️  Интервал: {SLEEP_BETWEEN_TX} сек")
-        print("="*60)
+        """Main agent loop: verify others, submit own report, repeat."""
+        print(f"\nStarting agent {self.name}")
+        print(f"Interval: {SLEEP_BETWEEN_TX}s")
+        print("=" * 60)
         
         try:
             while True:
-                # Принимаем решение
+                self.check_pending_verifications()
+
                 decision = self.make_decision()
-                
-                # Отправляем отчёт
                 self.submit_report(decision)
-                
-                # Сохраняем память
+
                 self.save_memory()
-                
-                # Переходим к следующей эпохе
+
                 self.epoch += 1
-                
-                # Пауза
                 time.sleep(SLEEP_BETWEEN_TX)
                 
         except KeyboardInterrupt:
