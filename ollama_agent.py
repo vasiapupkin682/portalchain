@@ -36,6 +36,12 @@ class LlamaAgent:
             'failed_txs': 0
         }
         
+        result = subprocess.run(
+            ["portalchaind", "keys", "show", self.validator, "--address"],
+            capture_output=True, text=True
+        )
+        self.address = result.stdout.strip()
+
         # Проверяем доступность Ollama
         self.check_ollama()
         
@@ -183,13 +189,16 @@ No other text, just the JSON object.
         """Получает текущую репутацию валидатора из блокчейна"""
         try:
             result = subprocess.run(
-                ["portalchaind", "q", "poi", "reputation", self.validator],
+                ["portalchaind", "q", "poi", "reputation", self.address],
                 capture_output=True, text=True, check=True
             )
-            # Парсим JSON ответ
-            data = json.loads(result.stdout)
-            return float(data['reputation']['value'])
-        except:
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("value:"):
+                    val = line.split(":", 1)[1].strip().strip('"')
+                    return float(val)
+            return 0.0
+        except Exception:
             return 0.0
     
     def get_network_height(self):
