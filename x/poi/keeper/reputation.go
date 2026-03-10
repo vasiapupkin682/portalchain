@@ -29,6 +29,18 @@ func (k Keeper) GetReputation(ctx sdk.Context, validator string) (types.Reputati
 	return rep, true
 }
 
+func (k Keeper) DeleteReputation(ctx sdk.Context, validator string) {
+	store := ctx.KVStore(k.storeKey)
+	key := []byte(types.ReputationPrefix + validator)
+	store.Delete(key)
+}
+
+func (k Keeper) HasReputation(ctx sdk.Context, validator string) bool {
+	store := ctx.KVStore(k.storeKey)
+	key := []byte(types.ReputationPrefix + validator)
+	return store.Has(key)
+}
+
 func (k Keeper) GetAllReputations(ctx sdk.Context) []types.Reputation {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.ReputationPrefix))
 	iterator := store.Iterator(nil, nil)

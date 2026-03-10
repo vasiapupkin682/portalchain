@@ -3,66 +3,11 @@ package keeper_test
 import (
 	"testing"
 
-	tmdb "github.com/cometbft/cometbft-db"
-	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/store"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 
-	poikeeper "portalchain/x/poi/keeper"
 	poitypes "portalchain/x/poi/types"
 )
-
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
-
-type mockStakingKeeper struct{}
-
-var _ poitypes.StakingKeeper = (*mockStakingKeeper)(nil)
-
-func (*mockStakingKeeper) GetValidator(_ sdk.Context, _ sdk.ValAddress) (stakingtypes.Validator, bool) {
-	return stakingtypes.Validator{}, false
-}
-func (*mockStakingKeeper) GetAllValidators(_ sdk.Context) []stakingtypes.Validator { return nil }
-
-type mockBankKeeper struct{}
-
-var _ poitypes.BankKeeper = (*mockBankKeeper)(nil)
-
-func (*mockBankKeeper) SpendableCoins(_ sdk.Context, _ sdk.AccAddress) sdk.Coins { return nil }
-
-// ---------------------------------------------------------------------------
-// Test helper
-// ---------------------------------------------------------------------------
-
-func setupPoiKeeper(t *testing.T, height int64, appHash []byte) (*poikeeper.Keeper, sdk.Context) {
-	t.Helper()
-
-	storeKey := sdk.NewKVStoreKey(poitypes.StoreKey)
-
-	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
-	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
-	require.NoError(t, stateStore.LoadLatestVersion())
-
-	registry := codectypes.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(registry)
-
-	k := poikeeper.NewKeeper(cdc, storeKey, &mockStakingKeeper{}, &mockBankKeeper{})
-
-	ctx := sdk.NewContext(stateStore, tmproto.Header{
-		Height:  height,
-		AppHash: appHash,
-	}, false, log.NewNopLogger())
-
-	return k, ctx
-}
 
 // testValidator returns a deterministic bech32 AccAddress string.
 func testValidator(b byte) string {
@@ -74,7 +19,9 @@ func testValidator(b byte) string {
 }
 
 // seedReport stores an EpochReport and returns it.
-func seedReport(t *testing.T, k *poikeeper.Keeper, ctx sdk.Context, epoch int64, validator string) poitypes.EpochReport {
+func seedReport(t *testing.T, k interface {
+	SetEpochReport(ctx sdk.Context, report poitypes.EpochReport)
+}, ctx sdk.Context, epoch int64, validator string) poitypes.EpochReport {
 	t.Helper()
 	report := poitypes.EpochReport{
 		Epoch:            epoch,
@@ -95,7 +42,7 @@ func seedReport(t *testing.T, k *poikeeper.Keeper, ctx sdk.Context, epoch int64,
 // ---------------------------------------------------------------------------
 
 func TestSamplingRecord_SetGet(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
+	k, ctx, _ := setupPoiKeeper(t)
 	val := testValidator(0x01)
 
 	record := poitypes.SamplingRecord{
@@ -114,7 +61,7 @@ func TestSamplingRecord_SetGet(t *testing.T) {
 	require.Equal(t, record.Deadline, got.Deadline)
 	require.Empty(t, got.VerifiedBy)
 
-	// Non-existent record.
+	// Non-existent records.
 	_, found = k.GetSamplingRecord(ctx, 999, val)
 	require.False(t, found)
 
@@ -127,7 +74,7 @@ func TestSamplingRecord_SetGet(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetPendingSamplingRecords(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
+	k, ctx, _ := setupPoiKeeper(t)
 
 	val1 := testValidator(0x01)
 	val2 := testValidator(0x02)
@@ -160,13 +107,12 @@ func TestGetPendingSamplingRecords(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestExpirePendingSamplings(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = ctx.WithBlockHeight(50)
 	val := testValidator(0x01)
 
-	// Seed an epoch report.
 	seedReport(t, k, ctx, 1, val)
 
-	// Pending record with Deadline=100.
 	k.SetSamplingRecord(ctx, poitypes.SamplingRecord{
 		Epoch: 1, Validator: val, Status: poitypes.SamplingStatusPending, Deadline: 100,
 	})
@@ -176,7 +122,7 @@ func TestExpirePendingSamplings(t *testing.T) {
 	require.False(t, found)
 	require.True(t, rep.Value.IsZero())
 
-	// Advance to height 101 — past the deadline.
+	// Advance past the deadline.
 	ctx = ctx.WithBlockHeight(101)
 	k.ExpirePendingSamplings(ctx)
 
@@ -197,7 +143,8 @@ func TestExpirePendingSamplings(t *testing.T) {
 }
 
 func TestExpirePendingSamplings_NotExpiredYet(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = ctx.WithBlockHeight(50)
 	val := testValidator(0x02)
 
 	seedReport(t, k, ctx, 1, val)
@@ -205,7 +152,7 @@ func TestExpirePendingSamplings_NotExpiredYet(t *testing.T) {
 		Epoch: 1, Validator: val, Status: poitypes.SamplingStatusPending, Deadline: 100,
 	})
 
-	// Height is 50, deadline is 100 — not expired.
+	// Height 50, deadline 100 — not expired.
 	k.ExpirePendingSamplings(ctx)
 
 	record, found := k.GetSamplingRecord(ctx, 1, val)

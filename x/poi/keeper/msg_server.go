@@ -2,7 +2,9 @@ package keeper
 
 import (
 	"context"
+	"crypto/sha256"
 	"strconv"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -150,4 +152,79 @@ func (k msgServer) VerifySampling(goCtx context.Context, msg *types.MsgVerifySam
 	)
 
 	return &types.MsgVerifySamplingResponse{}, nil
+}
+
+// RemoveAgent handles governance-initiated agent removal with mandatory
+// agent consent (S1 sacred principle). Only the gov module account can
+// submit this message, and the agent must have signed a consent payload.
+func (k msgServer) RemoveAgent(goCtx context.Context, msg *types.MsgRemoveAgent) (*types.MsgRemoveAgentResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	govAddr := k.accountKeeper.GetModuleAddress("gov")
+	if msg.Authority != govAddr.String() {
+		return nil, types.ErrGovAuthority.Wrapf(
+			"expected %s, got %s", govAddr.String(), msg.Authority,
+		)
+	}
+
+	if !k.HasReputation(ctx, msg.AgentAddress) {
+		return nil, types.ErrAgentNotFound.Wrapf(
+			"no reputation record for %s", msg.AgentAddress,
+		)
+	}
+
+	agentAddr, err := sdk.AccAddressFromBech32(msg.AgentAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	account := k.accountKeeper.GetAccount(ctx, agentAddr)
+	if account == nil {
+		return nil, types.ErrAgentNotFound.Wrapf(
+			"account not found for %s", msg.AgentAddress,
+		)
+	}
+
+	pubKey := account.GetPubKey()
+	if pubKey == nil {
+		return nil, types.ErrAgentConsentInvalid.Wrap(
+			"agent account has no public key on-chain; agent must send at least one transaction first",
+		)
+	}
+
+	consentExpiry := time.Unix(msg.ConsentExpiry, 0)
+	if ctx.BlockTime().After(consentExpiry) {
+		return nil, types.ErrAgentConsentInvalid.Wrapf(
+			"agent consent expired at %s, current block time is %s",
+			consentExpiry.UTC().String(), ctx.BlockTime().UTC().String(),
+		)
+	}
+
+	// payload = SHA256(AgentAddress + Authority + Reason + ChainID + ConsentExpiry)
+	expiryStr := strconv.FormatInt(msg.ConsentExpiry, 10)
+	payload := sha256.Sum256([]byte(msg.AgentAddress + msg.Authority + msg.Reason + ctx.ChainID() + expiryStr))
+
+	if !pubKey.VerifySignature(payload[:], msg.AgentConsent) {
+		return nil, types.ErrAgentConsentInvalid.Wrap(
+			"agent consent signature does not match",
+		)
+	}
+
+	k.DeleteReputation(ctx, msg.AgentAddress)
+
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			"agent_removed",
+			sdk.NewAttribute("agent", msg.AgentAddress),
+			sdk.NewAttribute("authority", msg.Authority),
+			sdk.NewAttribute("reason", msg.Reason),
+		),
+	)
+
+	k.Logger(ctx).Info("agent removed via governance with consent",
+		"agent", msg.AgentAddress,
+		"reason", msg.Reason,
+	)
+
+	return &types.MsgRemoveAgentResponse{}, nil
 }

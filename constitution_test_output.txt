@@ -1,0 +1,72 @@
+?   	portalchain/x/constitution	[no test files]
+?   	portalchain/x/constitution/types	[no test files]
+=== RUN   TestAnteHandler_SacredRejection
+--- PASS: TestAnteHandler_SacredRejection (0.00s)
+=== RUN   TestAnteHandler_VotingPowerS3
+=== RUN   TestAnteHandler_VotingPowerS3/MsgSubmitProposal_from_16%_address_→_error
+=== RUN   TestAnteHandler_VotingPowerS3/MsgVote_from_16%_address_→_error
+=== RUN   TestAnteHandler_VotingPowerS3/MsgVote_from_14%_address_→_passes
+--- PASS: TestAnteHandler_VotingPowerS3 (0.00s)
+    --- PASS: TestAnteHandler_VotingPowerS3/MsgSubmitProposal_from_16%_address_→_error (0.00s)
+    --- PASS: TestAnteHandler_VotingPowerS3/MsgVote_from_16%_address_→_error (0.00s)
+    --- PASS: TestAnteHandler_VotingPowerS3/MsgVote_from_14%_address_→_passes (0.00s)
+=== RUN   TestAnteHandler_PassThrough
+=== RUN   TestAnteHandler_PassThrough/non-governance_message_passes_through_unchanged
+=== RUN   TestAnteHandler_PassThrough/MsgSubmitProposal_with_NetworkParam_class_passes
+--- PASS: TestAnteHandler_PassThrough (0.00s)
+    --- PASS: TestAnteHandler_PassThrough/non-governance_message_passes_through_unchanged (0.00s)
+    --- PASS: TestAnteHandler_PassThrough/MsgSubmitProposal_with_NetworkParam_class_passes (0.00s)
+PASS
+ok  	portalchain/x/constitution/ante	0.043s
+=== RUN   TestVotingPowerLimit
+=== RUN   TestVotingPowerLimit/10%_power_passes
+=== RUN   TestVotingPowerLimit/16%_power_fails
+=== RUN   TestVotingPowerLimit/zero_bonded_is_safe_default
+--- PASS: TestVotingPowerLimit (0.00s)
+    --- PASS: TestVotingPowerLimit/10%_power_passes (0.00s)
+    --- PASS: TestVotingPowerLimit/16%_power_fails (0.00s)
+    --- PASS: TestVotingPowerLimit/zero_bonded_is_safe_default (0.00s)
+=== RUN   TestValidatorConcentration
+=== RUN   TestValidatorConcentration/5_validators_each_20%_passes_under_default_15%_threshold
+=== RUN   TestValidatorConcentration/one_validator_with_20%_exceeds_15%_limit
+=== RUN   TestValidatorConcentration/3_validators_on_testnet_each_33%_—_blocked_for_constitutional
+=== RUN   TestValidatorConcentration/zero_bonded_is_safe_default
+=== RUN   TestValidatorConcentration/unbonded_validators_ignored
+--- PASS: TestValidatorConcentration (0.00s)
+    --- PASS: TestValidatorConcentration/5_validators_each_20%_passes_under_default_15%_threshold (0.00s)
+    --- PASS: TestValidatorConcentration/one_validator_with_20%_exceeds_15%_limit (0.00s)
+    --- PASS: TestValidatorConcentration/3_validators_on_testnet_each_33%_—_blocked_for_constitutional (0.00s)
+    --- PASS: TestValidatorConcentration/zero_bonded_is_safe_default (0.00s)
+    --- PASS: TestValidatorConcentration/unbonded_validators_ignored (0.00s)
+=== RUN   TestProposalSnapshot
+--- PASS: TestProposalSnapshot (0.00s)
+=== RUN   TestTimelockBypass
+--- PASS: TestTimelockBypass (0.00s)
+=== RUN   TestTimelockBypass_CurrentParamsWouldApprove
+--- PASS: TestTimelockBypass_CurrentParamsWouldApprove (0.00s)
+=== RUN   TestClassifyProposal_SacredViolation
+--- PASS: TestClassifyProposal_SacredViolation (0.00s)
+=== RUN   TestClassifyProposal_Constitutional
+=== RUN   TestClassifyProposal_Constitutional/gov_MsgUpdateParams
+=== RUN   TestClassifyProposal_Constitutional/staking_MsgUpdateParams
+=== RUN   TestClassifyProposal_Constitutional/MsgRemoveAgent
+--- PASS: TestClassifyProposal_Constitutional (0.00s)
+    --- PASS: TestClassifyProposal_Constitutional/gov_MsgUpdateParams (0.00s)
+    --- PASS: TestClassifyProposal_Constitutional/staking_MsgUpdateParams (0.00s)
+    --- PASS: TestClassifyProposal_Constitutional/MsgRemoveAgent (0.00s)
+=== RUN   TestClassifyProposal_NetworkParam
+=== RUN   TestClassifyProposal_NetworkParam/empty_messages
+=== RUN   TestClassifyProposal_NetworkParam/unknown_message_type
+--- PASS: TestClassifyProposal_NetworkParam (0.00s)
+    --- PASS: TestClassifyProposal_NetworkParam/empty_messages (0.00s)
+    --- PASS: TestClassifyProposal_NetworkParam/unknown_message_type (0.00s)
+=== RUN   TestClassifyProposal_MultiMessage
+=== RUN   TestClassifyProposal_MultiMessage/NetworkParam_+_Constitutional_→_Constitutional
+=== RUN   TestClassifyProposal_MultiMessage/Constitutional_+_SacredViolation_→_SacredViolation
+=== RUN   TestClassifyProposal_MultiMessage/SacredViolation_short-circuits_on_first_match
+--- PASS: TestClassifyProposal_MultiMessage (0.00s)
+    --- PASS: TestClassifyProposal_MultiMessage/NetworkParam_+_Constitutional_→_Constitutional (0.00s)
+    --- PASS: TestClassifyProposal_MultiMessage/Constitutional_+_SacredViolation_→_SacredViolation (0.00s)
+    --- PASS: TestClassifyProposal_MultiMessage/SacredViolation_short-circuits_on_first_match (0.00s)
+PASS
+ok  	portalchain/x/constitution/keeper	0.047s

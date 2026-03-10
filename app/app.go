@@ -117,6 +117,11 @@ import (
 	poimodule "portalchain/x/poi"
 	poimodulekeeper "portalchain/x/poi/keeper"
 	poimoduletypes "portalchain/x/poi/types"
+
+	constitutionmodule "portalchain/x/constitution"
+	constitutionante "portalchain/x/constitution/ante"
+	constitutionkeeper "portalchain/x/constitution/keeper"
+	constitutiontypes "portalchain/x/constitution/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	appparams "portalchain/app/params"
@@ -179,6 +184,7 @@ var (
 		consensus.AppModuleBasic{},
 		portalchainmodule.AppModuleBasic{},
 		poimodule.AppModuleBasic{},
+		constitutionmodule.NewAppModuleBasic(nil),
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -255,7 +261,8 @@ type App struct {
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper
 
 	PortalchainKeeper portalchainmodulekeeper.Keeper
-	PoiKeeper         poimodulekeeper.Keeper
+	PoiKeeper           poimodulekeeper.Keeper
+	ConstitutionKeeper  constitutionkeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// mm is the module manager
@@ -304,6 +311,7 @@ func New(
 		capabilitytypes.StoreKey, group.StoreKey, icacontrollertypes.StoreKey, consensusparamtypes.StoreKey,
 		portalchainmoduletypes.StoreKey,
 		poimoduletypes.StoreKey,
+		constitutiontypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -520,12 +528,6 @@ func New(
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 	govKeeper.SetLegacyRouter(govRouter)
 
-	app.GovKeeper = *govKeeper.SetHooks(
-		govtypes.NewMultiGovHooks(
-		// register the governance hooks
-		),
-	)
-
 	app.PortalchainKeeper = *portalchainmodulekeeper.NewKeeper(
 		appCodec,
 		keys[portalchainmoduletypes.StoreKey],
@@ -537,10 +539,27 @@ func New(
 	app.PoiKeeper = *poimodulekeeper.NewKeeper(
 		appCodec,
 		keys[poimoduletypes.StoreKey],
+		app.AccountKeeper,
 		app.StakingKeeper,
 		app.BankKeeper,
 	)
 	poiModule := poimodule.NewAppModule(appCodec, app.PoiKeeper, app.AccountKeeper, app.BankKeeper)
+
+	app.ConstitutionKeeper = constitutionkeeper.NewKeeper(
+		appCodec,
+		keys[constitutiontypes.StoreKey],
+		govKeeper,
+		app.StakingKeeper,
+		&app.PoiKeeper,
+	)
+	constitutionModule := constitutionmodule.NewAppModule(appCodec, app.ConstitutionKeeper)
+
+	// Set gov hooks AFTER constitution keeper is created so it can register its hooks.
+	app.GovKeeper = *govKeeper.SetHooks(
+		govtypes.NewMultiGovHooks(
+			app.ConstitutionKeeper.GovHooks(),
+		),
+	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
@@ -605,6 +624,7 @@ func New(
 		icaModule,
 		portalchainModule,
 		poiModule,
+		constitutionModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 
 		crisis.NewAppModule(app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)), // always be last to make sure that it checks for all invariants and not only part of them
@@ -639,11 +659,13 @@ func New(
 		consensusparamtypes.ModuleName,
 		portalchainmoduletypes.ModuleName,
 		poimoduletypes.ModuleName,
+		constitutiontypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/beginBlockers
 	)
 
 	app.mm.SetOrderEndBlockers(
 		crisistypes.ModuleName,
+		constitutiontypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		ibctransfertypes.ModuleName,
@@ -698,6 +720,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		portalchainmoduletypes.ModuleName,
 		poimoduletypes.ModuleName,
+		constitutiontypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	}
 	app.mm.SetOrderInitGenesis(genesisModuleOrder...)
@@ -730,7 +753,7 @@ func New(
 	app.MountMemoryStores(memKeys)
 
 	// initialize BaseApp
-	anteHandler, err := ante.NewAnteHandler(
+	baseAnteHandler, err := ante.NewAnteHandler(
 		ante.HandlerOptions{
 			AccountKeeper:   app.AccountKeeper,
 			BankKeeper:      app.BankKeeper,
@@ -743,7 +766,18 @@ func New(
 		panic(fmt.Errorf("failed to create AnteHandler: %w", err))
 	}
 
-	app.SetAnteHandler(anteHandler)
+	constitutionDecorator := constitutionante.NewConstitutionAnteDecorator(app.ConstitutionKeeper)
+	anteHandler := sdk.ChainAnteDecorators(constitutionDecorator)
+	// Wrap: constitution check runs first, then the standard SDK ante chain.
+	wrappedAnteHandler := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		ctx, err := anteHandler(ctx, tx, simulate)
+		if err != nil {
+			return ctx, err
+		}
+		return baseAnteHandler(ctx, tx, simulate)
+	}
+
+	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)

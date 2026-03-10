@@ -15,13 +15,13 @@ import (
 )
 
 const (
-	FlagEpoch             = "epoch"
-	FlagTasksProcessed    = "tasks-processed"
-	FlagWeightedTaskSum   = "weighted-task-sum"
-	FlagAvgLatency        = "avg-latency"
-	FlagReliability       = "reliability"
-	FlagSamplingFailures  = "sampling-failures"
-	FlagTimestamp         = "timestamp"
+	FlagEpoch            = "epoch"
+	FlagTasksProcessed   = "tasks-processed"
+	FlagWeightedTaskSum  = "weighted-task-sum"
+	FlagAvgLatency       = "avg-latency"
+	FlagReliability      = "reliability"
+	FlagSamplingFailures = "sampling-failures"
+	FlagTimestamp        = "timestamp"
 )
 
 func GetTxCmd() *cobra.Command {

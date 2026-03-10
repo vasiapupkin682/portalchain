@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"testing"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -37,12 +38,26 @@ func submitTestReport(t *testing.T, srv poitypes.FullMsgServer, ctx sdk.Context,
 	require.NoError(t, err)
 }
 
+// withHeader returns a context with the given block height and AppHash,
+// preserving other header fields (ChainID, Time) from the original context.
+func withHeader(ctx sdk.Context, height int64, appHash []byte) sdk.Context {
+	h := ctx.BlockHeader()
+	return ctx.WithBlockHeader(tmproto.Header{
+		Height:  height,
+		AppHash: appHash,
+		ChainID: h.ChainID,
+		Time:    h.Time,
+	})
+}
+
 // ---------------------------------------------------------------------------
 // TestSubmitEpochReport_SamplingDeferred
 // ---------------------------------------------------------------------------
 
 func TestSubmitEpochReport_SamplingDeferred(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, appHashSampled)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = withHeader(ctx, 50, appHashSampled)
+
 	srv := poikeeper.NewMsgServerImpl(*k)
 	val := testValidator(0x10)
 
@@ -65,7 +80,9 @@ func TestSubmitEpochReport_SamplingDeferred(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSubmitEpochReport_NoSampling(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, appHashNotSampled)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = withHeader(ctx, 50, appHashNotSampled)
+
 	srv := poikeeper.NewMsgServerImpl(*k)
 	val := testValidator(0x11)
 
@@ -86,9 +103,10 @@ func TestSubmitEpochReport_NoSampling(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestVerifySampling_Passed(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
-	srv := poikeeper.NewMsgServerImpl(*k)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = ctx.WithBlockHeight(50)
 
+	srv := poikeeper.NewMsgServerImpl(*k)
 	val := testValidator(0x20)
 	verifier := testValidator(0x21)
 
@@ -127,9 +145,10 @@ func TestVerifySampling_Passed(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestVerifySampling_Failed(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
-	srv := poikeeper.NewMsgServerImpl(*k)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = ctx.WithBlockHeight(50)
 
+	srv := poikeeper.NewMsgServerImpl(*k)
 	val := testValidator(0x30)
 	verifier := testValidator(0x31)
 
@@ -169,9 +188,10 @@ func TestVerifySampling_Failed(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestVerifySampling_Errors(t *testing.T) {
-	k, ctx := setupPoiKeeper(t, 50, nil)
-	srv := poikeeper.NewMsgServerImpl(*k)
+	k, ctx, _ := setupPoiKeeper(t)
+	ctx = ctx.WithBlockHeight(50)
 
+	srv := poikeeper.NewMsgServerImpl(*k)
 	val := testValidator(0x40)
 	verifier := testValidator(0x41)
 
@@ -211,7 +231,6 @@ func TestVerifySampling_Errors(t *testing.T) {
 	})
 
 	t.Run("already resolved → ErrSamplingAlreadyResolved", func(t *testing.T) {
-		// Mark it as verified first.
 		k.SetSamplingRecord(ctx, poitypes.SamplingRecord{
 			Epoch: testEpoch, Validator: val,
 			Status: poitypes.SamplingStatusVerified, Deadline: 200,

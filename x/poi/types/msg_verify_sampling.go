@@ -419,12 +419,13 @@ func skipVS(dAtA []byte) (n int, err error) {
 }
 
 // ---------------------------------------------------------------------------
-// Extended MsgServer interface (adds VerifySampling)
+// Extended MsgServer interface (adds VerifySampling + RemoveAgent)
 // ---------------------------------------------------------------------------
 
 type FullMsgServer interface {
 	MsgServer
 	VerifySampling(context.Context, *MsgVerifySampling) (*MsgVerifySamplingResponse, error)
+	RemoveAgent(context.Context, *MsgRemoveAgent) (*MsgRemoveAgentResponse, error)
 }
 
 type UnimplementedFullMsgServer struct {
@@ -435,8 +436,12 @@ func (*UnimplementedFullMsgServer) VerifySampling(_ context.Context, _ *MsgVerif
 	return nil, status.Errorf(codes.Unimplemented, "method VerifySampling not implemented")
 }
 
+func (*UnimplementedFullMsgServer) RemoveAgent(_ context.Context, _ *MsgRemoveAgent) (*MsgRemoveAgentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveAgent not implemented")
+}
+
 // ---------------------------------------------------------------------------
-// gRPC handler and combined service descriptor
+// gRPC handlers
 // ---------------------------------------------------------------------------
 
 func _Msg_VerifySampling_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -457,6 +462,28 @@ func _Msg_VerifySampling_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_RemoveAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRemoveAgent)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FullMsgServer).RemoveAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/portalchain.poi.Msg/RemoveAgent",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FullMsgServer).RemoveAgent(ctx, req.(*MsgRemoveAgent))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ---------------------------------------------------------------------------
+// Combined service descriptor (all three methods)
+// ---------------------------------------------------------------------------
+
 var _FullMsg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "portalchain.poi.Msg",
 	HandlerType: (*FullMsgServer)(nil),
@@ -468,6 +495,10 @@ var _FullMsg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VerifySampling",
 			Handler:    _Msg_VerifySampling_Handler,
+		},
+		{
+			MethodName: "RemoveAgent",
+			Handler:    _Msg_RemoveAgent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

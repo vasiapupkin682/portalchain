@@ -1,0 +1,27 @@
+syntax = "proto3";
+package portalchain.constitution;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "portalchain/x/constitution/types";
+
+message ConstitutionParams {
+  string max_voting_power_percent = 1 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+  string constitutional_quorum = 2 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+  string network_param_quorum = 3 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+  int64 constitutional_timelock_days = 4;
+  string sacred_principles_hash = 5;
+}
+
+message GenesisState {
+  ConstitutionParams params = 1 [(gogoproto.nullable) = false];
+}
