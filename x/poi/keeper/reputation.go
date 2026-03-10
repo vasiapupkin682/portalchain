@@ -1,8 +1,8 @@
 package keeper
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"portalchain/x/poi/types"
 )
@@ -27,6 +27,18 @@ func (k Keeper) GetReputation(ctx sdk.Context, validator string) (types.Reputati
 	var rep types.Reputation
 	k.cdc.MustUnmarshal(bz, &rep)
 	return rep, true
+}
+
+func (k Keeper) DeleteReputation(ctx sdk.Context, validator string) {
+	store := ctx.KVStore(k.storeKey)
+	key := []byte(types.ReputationPrefix + validator)
+	store.Delete(key)
+}
+
+func (k Keeper) HasReputation(ctx sdk.Context, validator string) bool {
+	store := ctx.KVStore(k.storeKey)
+	key := []byte(types.ReputationPrefix + validator)
+	return store.Has(key)
 }
 
 func (k Keeper) GetAllReputations(ctx sdk.Context) []types.Reputation {

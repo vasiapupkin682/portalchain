@@ -8,16 +8,14 @@ import (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgSubmitEpochReport{}, "poi/MsgSubmitEpochReport", nil)
-	cdc.RegisterConcrete(&MsgRemoveAgent{}, "poi/MsgRemoveAgent", nil)
+	cdc.RegisterConcrete(&MsgDeleteOwnRecord{}, "constitution/MsgDeleteOwnRecord", nil)
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&MsgSubmitEpochReport{},
-		&MsgRemoveAgent{},
+		&MsgDeleteOwnRecord{},
 	)
-	msgservice.RegisterMsgServiceDesc(registry, &_FullMsg_serviceDesc)
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
 var (

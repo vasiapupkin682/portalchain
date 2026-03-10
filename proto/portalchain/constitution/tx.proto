@@ -1,0 +1,14 @@
+syntax = "proto3";
+package portalchain.constitution;
+
+option go_package = "portalchain/x/constitution/types";
+
+service Msg {
+  rpc DeleteOwnRecord(MsgDeleteOwnRecord) returns (MsgDeleteOwnRecordResponse);
+}
+
+message MsgDeleteOwnRecord {
+  string address = 1;
+}
+
+message MsgDeleteOwnRecordResponse {}
