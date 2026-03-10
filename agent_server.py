@@ -1,0 +1,332 @@
+#!/usr/bin/env python3
+"""
+PortalChain AI Agent Server — real task execution and PoI reporting.
+
+HTTP server that executes tasks via Ollama, buffers results, and submits
+real metrics to the PortalChain blockchain.
+"""
+
+import hashlib
+import json
+import logging
+import os
+import subprocess
+import time
+from typing import Optional
+
+import requests
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+# ========== Configuration ==========
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2"
+OLLAMA_TIMEOUT = 120
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="PortalChain Agent", version="1.0.0")
+agent: Optional["PortalChainAgent"] = None
+
+
+# ========== Request/Response Models ==========
+
+class TaskRequest(BaseModel):
+    prompt: str
+    max_tokens: int = 500
+    temperature: float = 0.7
+
+
+class TaskResponse(BaseModel):
+    result: str
+    task_hash: str
+    result_hash: str
+    latency_ms: int
+    agent: str
+    epoch: int
+
+
+class StatusResponse(BaseModel):
+    agent: str
+    validator: str
+    reputation: float
+    tasks_completed: int
+    tasks_failed: int
+    current_epoch: int
+    buffer_size: int
+    ollama_available: bool
+
+
+class HealthResponse(BaseModel):
+    status: str
+    validator: str
+
+
+# ========== PortalChainAgent ==========
+
+class PortalChainAgent:
+    def __init__(self, validator_name: str, chain_id: str = "portalchain"):
+        self.validator = validator_name
+        self.chain_id = chain_id
+        self.epoch_counter = self._load_epoch()
+        self.task_buffer: list[dict] = []
+        # Buffer size of 10 tasks ensures normalized_score > typical reputation.
+        # With maxScore=100: 10 tasks = 0.10 normalized.
+        # Reputation grows when normalized_score > current_reputation.
+        # Minimum recommended buffer_size = 10.
+        self.buffer_size = 10
+        self.stats = {"completed": 0, "failed": 0, "total_latency": 0}
+
+        result = subprocess.run(
+            ["portalchaind", "keys", "show", self.validator, "--address"],
+            capture_output=True,
+            text=True,
+        )
+        self.address = result.stdout.strip() if result.returncode == 0 else ""
+
+        if not self.address:
+            logger.warning("Could not resolve validator address from CLI")
+
+        logger.info(
+            "PortalChainAgent initialized: validator=%s address=%s epoch=%d",
+            self.validator,
+            self.address[:16] + "..." if self.address else "N/A",
+            self.epoch_counter,
+        )
+
+    def _epoch_file(self) -> str:
+        return f"agent_{self.validator}_epoch.json"
+
+    def _load_epoch(self) -> int:
+        path = f"agent_{self.validator}_epoch.json"
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                return int(data.get("epoch", 7000))
+            except Exception as e:
+                logger.warning("Could not load epoch from %s: %s", path, e)
+        return 7000
+
+    def _save_epoch(self):
+        path = self._epoch_file()
+        try:
+            with open(path, "w") as f:
+                json.dump({"epoch": self.epoch_counter}, f)
+        except Exception as e:
+            logger.error("Could not save epoch to %s: %s", path, e)
+
+    def get_reputation(self) -> float:
+        """Query blockchain for current reputation (YAML output)."""
+        try:
+            result = subprocess.run(
+                ["portalchaind", "q", "poi", "reputation", self.address],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("value:"):
+                    val = line.split(":", 1)[1].strip().strip('"')
+                    return float(val)
+        except Exception as e:
+            logger.debug("Could not query reputation: %s", e)
+        return 0.0
+
+    def _check_ollama(self) -> bool:
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=3)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def _run_inference(self, prompt: str, max_tokens: int, temperature: float) -> tuple[str, bool]:
+        """Returns (result_text, success)."""
+        try:
+            resp = requests.post(
+                OLLAMA_URL,
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": temperature,
+                    },
+                },
+                timeout=OLLAMA_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return "", False
+            text = resp.json().get("response", "").strip()
+            return text, True
+        except Exception as e:
+            logger.error("%s Ollama inference failed: %s", time.strftime("%Y-%m-%d %H:%M:%S"), e)
+            return "", False
+
+    def submit_poi_report(self):
+        """Submit real metrics from task_buffer to blockchain."""
+        if not self.task_buffer:
+            return
+
+        n = len(self.task_buffer)
+        success_count = sum(1 for t in self.task_buffer if t.get("success", False))
+        total_latency = sum(t.get("latency_ms", 0) for t in self.task_buffer)
+        weighted_sum = sum(t.get("latency_ms", 0) / 10 for t in self.task_buffer)
+        avg_latency = int(total_latency / n) if n else 0
+        reliability = success_count / n if n else 0.0
+
+        cmd = [
+            "portalchaind", "tx", "poi", "submit-report",
+            "--epoch", str(self.epoch_counter),
+            "--tasks-processed", str(n),
+            "--weighted-task-sum", str(int(weighted_sum)),
+            "--avg-latency", str(avg_latency),
+            "--reliability", str(reliability),
+            "--sampling-failures", "0",
+            "--from", self.validator,
+            "--chain-id", self.chain_id,
+            "--yes",
+            "--output", "json",
+            "--broadcast-mode", "sync",
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            logger.info(f"CLI stdout: {result.stdout[:200]}")
+            if result.stderr:
+                logger.error(f"CLI stderr: {result.stderr[:200]}")
+            if result.returncode != 0:
+                logger.error(f"CLI returncode: {result.returncode}")
+            else:
+                logger.info(
+                    "Submitted PoI report: epoch=%d tasks=%d reliability=%.3f",
+                    self.epoch_counter,
+                    n,
+                    reliability,
+                )
+                self.epoch_counter += 1
+                self._save_epoch()
+        except Exception as e:
+            logger.error(
+                "%s Error submitting PoI report: %s",
+                time.strftime("%Y-%m-%d %H:%M:%S"),
+                e,
+            )
+
+    def execute_task(
+        self,
+        prompt: str,
+        max_tokens: int = 500,
+        temperature: float = 0.7,
+    ) -> TaskResponse:
+        """Run a single task and return response. Buffers for PoI report."""
+        start = time.perf_counter()
+        result_text, success = self._run_inference(prompt, max_tokens, temperature)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+
+        task_hash = hashlib.sha256(prompt.encode()).hexdigest()
+        result_hash = hashlib.sha256(result_text.encode()).hexdigest() if result_text else ""
+
+        if success:
+            self.stats["completed"] += 1
+        else:
+            self.stats["failed"] += 1
+        self.stats["total_latency"] += latency_ms
+
+        self.task_buffer.append({
+            "task_hash": task_hash,
+            "result_hash": result_hash,
+            "latency_ms": latency_ms,
+            "success": success,
+        })
+
+        if len(self.task_buffer) >= self.buffer_size:
+            self.submit_poi_report()
+            self.task_buffer.clear()
+
+        return TaskResponse(
+            result=result_text,
+            task_hash=task_hash,
+            result_hash=result_hash,
+            latency_ms=latency_ms,
+            agent=self.address,
+            epoch=self.epoch_counter,
+        )
+
+
+# ========== API Endpoints ==========
+
+@app.post("/task", response_model=TaskResponse)
+def post_task(req: TaskRequest):
+    if agent is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    if not agent._check_ollama():
+        raise HTTPException(
+            status_code=503,
+            detail="inference unavailable",
+        )
+    try:
+        resp = agent.execute_task(
+            prompt=req.prompt,
+            max_tokens=req.max_tokens,
+            temperature=req.temperature,
+        )
+        return resp
+    except Exception as e:
+        logger.error("%s Task execution error: %s", time.strftime("%Y-%m-%d %H:%M:%S"), e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/status", response_model=StatusResponse)
+def get_status():
+    if agent is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    return StatusResponse(
+        agent=agent.address,
+        validator=agent.validator,
+        reputation=agent.get_reputation(),
+        tasks_completed=agent.stats["completed"],
+        tasks_failed=agent.stats["failed"],
+        current_epoch=agent.epoch_counter,
+        buffer_size=len(agent.task_buffer),
+        ollama_available=agent._check_ollama(),
+    )
+
+
+@app.get("/health", response_model=HealthResponse)
+def get_health():
+    if agent is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    return HealthResponse(status="ok", validator=agent.validator)
+
+
+# ========== Startup ==========
+
+if __name__ == "__main__":
+    import argparse
+    import uvicorn
+
+    parser = argparse.ArgumentParser(description="PortalChain Agent HTTP Server")
+    parser.add_argument("--from", dest="validator", default="alice", help="Validator key name")
+    parser.add_argument("--port", type=int, default=8000, help="Server port")
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=10,
+        help="Tasks before submitting PoI report (min 10 for reputation growth)",
+    )
+    parser.add_argument("--chain-id", default="portalchain", help="Chain ID")
+    args = parser.parse_args()
+
+    agent = PortalChainAgent(args.validator, chain_id=args.chain_id)
+    agent.buffer_size = args.buffer_size
+
+    logger.info("Starting agent server on port %d (buffer_size=%d)", args.port, agent.buffer_size)
+    uvicorn.run(app, host="0.0.0.0", port=args.port)

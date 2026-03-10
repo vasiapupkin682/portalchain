@@ -79,11 +79,13 @@ func (k Keeper) UpdateReputation(ctx sdk.Context, report types.EpochReport) {
 		rawScore = sdk.ZeroDec()
 	}
 
-	// Exponential moving average: new = 0.8 * old + 0.2 * raw_normalized
-	alpha := sdk.NewDecWithPrec(2, 1) // 0.2
+	// Exponential moving average: new = 0.95 * old + 0.05 * raw_normalized
+	// alpha=0.05: reputation changes slowly, single bad report has minimal impact
+	alpha := sdk.NewDecWithPrec(5, 2) // 0.05
 	oneMinusAlpha := sdk.OneDec().Sub(alpha)
 
-	maxScore := sdk.NewDec(1000)
+	// maxScore=100: agent processing 50-100 tasks per epoch gets 0.5-1.0 normalized score
+	maxScore := sdk.NewDec(100)
 	normalizedScore := rawScore.Quo(maxScore)
 	if normalizedScore.GT(sdk.OneDec()) {
 		normalizedScore = sdk.OneDec()
