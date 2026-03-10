@@ -148,12 +148,18 @@ class PortalChainAgent:
 
     def _run_inference(self, prompt: str, max_tokens: int, temperature: float) -> tuple[str, bool]:
         """Returns (result_text, success)."""
+        system_prompt = (
+            "You are a helpful AI assistant. Always respond in the same language as "
+            "the user's question. If the question is in Russian, respond in Russian. "
+            "If in English, respond in English."
+        )
         try:
             resp = requests.post(
                 OLLAMA_URL,
                 json={
                     "model": OLLAMA_MODEL,
                     "prompt": prompt,
+                    "system": system_prompt,
                     "stream": False,
                     "options": {
                         "num_predict": max_tokens,
