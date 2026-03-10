@@ -1,0 +1,37 @@
+syntax = "proto3";
+package portalchain.modelregistry;
+
+option go_package = "portalchain/x/model-registry/types";
+
+service Msg {
+  rpc RegisterModel(MsgRegisterModel) returns (MsgRegisterModelResponse);
+  rpc UpdateModel(MsgUpdateModel) returns (MsgUpdateModelResponse);
+  rpc DeregisterModel(MsgDeregisterModel) returns (MsgDeregisterModelResponse);
+}
+
+message MsgRegisterModel {
+  string operator = 1;
+  string model_name = 2;
+  string endpoint = 3;
+  repeated string capabilities = 4;
+  string price_per_task = 5;
+}
+
+message MsgRegisterModelResponse {}
+
+message MsgUpdateModel {
+  string operator = 1;
+  string endpoint = 2;
+  repeated string capabilities = 3;
+  string price_per_task = 4;
+  bool active = 5;
+}
+
+message MsgUpdateModelResponse {}
+
+message MsgDeregisterModel {
+  string operator = 1;
+  string model_name = 2;
+}
+
+message MsgDeregisterModelResponse {}
