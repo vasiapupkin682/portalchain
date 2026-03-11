@@ -9,6 +9,7 @@ import json
 import os
 import random
 import subprocess
+import time
 
 import requests
 from telegram import Update
@@ -17,6 +18,37 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8000")  # fallback
 CHAIN_RPC = os.getenv("CHAIN_RPC", "http://localhost:26657")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+FAUCET_FILE = "faucet_history.json"
+FAUCET_AMOUNT = "1000daai"
+FAUCET_COOLDOWN_HOURS = 24
+
+
+def load_faucet_history() -> dict:
+    try:
+        with open(FAUCET_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_faucet_history(history: dict):
+    with open(FAUCET_FILE, "w") as f:
+        json.dump(history, f, indent=2)
+
+
+def can_receive_faucet(address: str) -> tuple[bool, int]:
+    """Returns (can_receive, hours_until_next)"""
+    history = load_faucet_history()
+    if address not in history:
+        return True, 0
+    last_time = history[address]
+    elapsed = time.time() - last_time
+    cooldown = FAUCET_COOLDOWN_HOURS * 3600
+    if elapsed >= cooldown:
+        return True, 0
+    hours_left = int((cooldown - elapsed) / 3600) + 1
+    return False, hours_left
 
 
 def get_active_models() -> list:
@@ -125,6 +157,7 @@ async def start(update: Update, context):
         "/status — Check agent status\n"
         "/reputation — Check my blockchain reputation\n"
         "/agents — List active AI agents in network\n"
+        "/faucet <address> — Get 1000 test DAAI tokens\n"
         "/help — Show this message"
     )
 
@@ -265,6 +298,82 @@ async def agents(update: Update, context):
     await update.message.reply_text("\n".join(lines))
 
 
+async def faucet(update: Update, context):
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /faucet <your_portal_address>\n"
+            "Example: /faucet portal1abc...xyz\n\n"
+            "You can get 1000 DAAI once every 24 hours."
+        )
+        return
+
+    address = context.args[0].strip()
+
+    # Validate address format
+    if not address.startswith("portal1") or len(address) < 20:
+        await update.message.reply_text("❌ Invalid address. Must start with portal1...")
+        return
+
+    # Check cooldown
+    can_receive, hours_left = can_receive_faucet(address)
+    if not can_receive:
+        await update.message.reply_text(
+            f"⏰ Already received tokens.\n"
+            f"Come back in {hours_left} hours."
+        )
+        return
+
+    await update.message.reply_text("⏳ Sending tokens...")
+
+    try:
+        # Send tokens via CLI
+        result = subprocess.run(
+            [
+                "portalchaind",
+                "tx",
+                "bank",
+                "send",
+                "alice",  # faucet account
+                address,
+                FAUCET_AMOUNT,
+                "--chain-id",
+                "portalchain",
+                "--keyring-backend",
+                "test",
+                "--yes",
+                "--output",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            txhash = data.get("txhash", "unknown")
+
+            # Save to history
+            history = load_faucet_history()
+            history[address] = time.time()
+            save_faucet_history(history)
+
+            await update.message.reply_text(
+                f"✅ Sent 1000 DAAI!\n\n"
+                f"📍 To: {address[:20]}...\n"
+                f"🔗 TX: {txhash[:20]}...\n\n"
+                f"⛓ PortalChain Testnet"
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Transaction failed. Try again later."
+            )
+    except subprocess.TimeoutExpired:
+        await update.message.reply_text("⏰ Timeout. Node may be busy, try again.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
+
+
 async def handle_message(update: Update, context):
     # Handle plain text messages (not commands) as /ask
     text = update.message.text
@@ -286,6 +395,7 @@ def main():
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("reputation", reputation))
     app.add_handler(CommandHandler("agents", agents))
+    app.add_handler(CommandHandler("faucet", faucet))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("🤖 PortalChain Telegram bot started")
