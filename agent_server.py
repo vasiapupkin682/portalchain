@@ -341,6 +341,36 @@ def get_health():
     return HealthResponse(status="ok", validator=agent.validator)
 
 
+def get_balance():
+    """Query blockchain for DAAI balance via CLI."""
+    if agent is None or not agent.address:
+        return "0"
+    try:
+        result = subprocess.run(
+            ["portalchaind", "q", "bank", "balances", agent.address, "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return "0"
+        data = json.loads(result.stdout)
+        balances = data.get("balances", [])
+        daai = next((b for b in balances if b.get("denom") == "daai"), {"amount": "0"})
+        return daai["amount"]
+    except Exception:
+        return "0"
+
+
+@app.get("/balance")
+def balance_endpoint():
+    """Return agent's DAAI balance."""
+    if agent is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    bal = get_balance()
+    return {"address": agent.address, "balance": bal, "denom": "daai"}
+
+
 # ========== Startup ==========
 
 if __name__ == "__main__":

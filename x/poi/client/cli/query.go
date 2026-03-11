@@ -33,6 +33,7 @@ func GetQueryCmd(queryRoute string) *cobra.Command {
 		CmdQueryReports(),
 		CmdQuerySamplingRecord(),
 		CmdQueryPendingSamplings(),
+		CmdQueryParams(),
 	)
 
 	return cmd
@@ -215,6 +216,61 @@ or failed), the block-height deadline, and the verifier address.`,
 			return clientCtx.PrintString(fmt.Sprintf(
 				"Sampling Record:\n  Epoch:       %d\n  Validator:   %s\n  Status:      %s\n  Deadline:    %d\n  Verified By: %s\n",
 				record.Epoch, record.Validator, record.Status, record.Deadline, verifier,
+			))
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+func CmdQueryParams() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "params",
+		Short: "Query PoI module parameters (reward interval, percent, min reputation)",
+		Long: `Query the current Proof-of-Intelligence tokenomics parameters:
+  - Reward Interval: blocks between reward distributions
+  - Reward Percent: fraction of community pool (DAAI) distributed per interval
+  - Min Reputation: minimum reputation score to receive rewards`,
+		Example: `  portalchaind q poi params
+  portalchaind q poi params --output json`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			resp, err := clientCtx.QueryABCI(abcitypes.RequestQuery{
+				Path: fmt.Sprintf("store/%s/key", types.StoreKey),
+				Data: []byte(types.ParamsKey),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to query params: %w", err)
+			}
+
+			params := types.DefaultParams()
+			if len(resp.Value) > 0 {
+				if err := json.Unmarshal(resp.Value, &params); err != nil {
+					return fmt.Errorf("failed to unmarshal params: %w", err)
+				}
+			}
+
+			if clientCtx.OutputFormat == "json" {
+				bz, err := json.MarshalIndent(params, "", "  ")
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintBytes(bz)
+			}
+
+			// Reward percent as percentage: 0.001 -> 0.100%
+			pct := params.RewardPercent.MulInt64(100)
+			return clientCtx.PrintString(fmt.Sprintf(
+				"PoI Parameters:\n  Reward Interval:  %d blocks\n  Reward Percent:   %s%%\n  Min Reputation:   %s\n",
+				params.RewardInterval,
+				pct.String(),
+				params.MinReputationForReward.String(),
 			))
 		},
 	}

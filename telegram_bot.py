@@ -191,12 +191,21 @@ async def status(update: Update, context):
         response = requests.get(f"{AGENT_URL}/status", timeout=10)
         data = response.json()
 
+        balance = "0"
+        try:
+            bal_resp = requests.get(f"{AGENT_URL}/balance", timeout=5)
+            if bal_resp.status_code == 200:
+                balance = bal_resp.json().get("balance", "0")
+        except Exception:
+            pass
+
         reply = (
             f"🤖 Agent Status\n"
             f"─────────────────\n"
             f"🌐 Active agents: {len(active_models)}\n"
             f"📍 Validator: {data['validator']}\n"
             f"⭐ Reputation: {data['reputation']:.4f}\n"
+            f"💰 Balance: {balance} DAAI\n"
             f"✅ Tasks completed: {data['tasks_completed']}\n"
             f"❌ Tasks failed: {data['tasks_failed']}\n"
             f"📊 Current epoch: {data['current_epoch']}\n"

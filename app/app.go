@@ -551,6 +551,7 @@ func New(
 		app.AccountKeeper,
 		app.StakingKeeper,
 		app.BankKeeper,
+		app.DistrKeeper,
 	)
 	poiModule := poimodule.NewAppModule(appCodec, app.PoiKeeper, app.AccountKeeper, app.BankKeeper)
 

@@ -8,6 +8,7 @@ import (
 )
 
 func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) {
+	k.SetParams(ctx, types.DefaultParams())
 	for _, report := range genState.Reports {
 		k.SetEpochReport(ctx, report)
 	}

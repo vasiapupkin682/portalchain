@@ -9,6 +9,8 @@ const (
 	EpochReportPrefix = "EpochReport:"
 	ReputationPrefix  = "Reputation:"
 	SamplingPrefix    = "Sampling:"
+
+	ParamsKey = "Params"
 )
 
 func KeyPrefix(p string) []byte {
