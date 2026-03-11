@@ -26,4 +26,5 @@ message Reputation {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable) = false
   ];
+  int64 slash_strikes = 3;
 }

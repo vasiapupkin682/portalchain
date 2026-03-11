@@ -71,6 +71,7 @@ func (k msgServer) SubmitEpochReport(goCtx context.Context, msg *types.MsgSubmit
 	} else {
 		// Not sampled — update reputation immediately.
 		k.UpdateReputation(ctx, report)
+		k.CheckAndSlash(ctx, report.Validator)
 	}
 
 	ctx.EventManager().EmitEvent(
@@ -124,12 +125,14 @@ func (k msgServer) VerifySampling(goCtx context.Context, msg *types.MsgVerifySam
 		record.Status = types.SamplingStatusVerified
 		record.VerifiedBy = msg.Verifier
 		k.UpdateReputation(ctx, report)
+		k.CheckAndSlash(ctx, report.Validator)
 	} else {
 		record.Status = types.SamplingStatusFailed
 		record.VerifiedBy = msg.Verifier
 		report.SamplingFailures++
 		k.SetEpochReport(ctx, report)
 		k.UpdateReputation(ctx, report)
+		k.CheckAndSlash(ctx, report.Validator)
 	}
 
 	k.SetSamplingRecord(ctx, record)

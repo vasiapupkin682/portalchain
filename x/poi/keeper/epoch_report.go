@@ -35,6 +35,21 @@ func (k Keeper) GetEpochReport(ctx sdk.Context, epoch int64, validator string) (
 	return report, true
 }
 
+// GetLatestReport returns the epoch report with the highest epoch for a validator, if any.
+func (k Keeper) GetLatestReport(ctx sdk.Context, validator string) (types.EpochReport, bool) {
+	reports := k.GetReportsByValidator(ctx, validator)
+	if len(reports) == 0 {
+		return types.EpochReport{}, false
+	}
+	var latest types.EpochReport
+	for _, r := range reports {
+		if r.Epoch > latest.Epoch {
+			latest = r
+		}
+	}
+	return latest, true
+}
+
 func (k Keeper) GetReportsByValidator(ctx sdk.Context, validator string) []types.EpochReport {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.EpochReportPrefix))
 	iterator := store.Iterator(nil, nil)

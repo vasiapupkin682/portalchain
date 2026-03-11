@@ -13,6 +13,37 @@ func modelRegistryKey(operator string) []byte {
 	return []byte(modelregistrytypes.ModelRegistryPrefix + operator)
 }
 
+// GetModelRecord returns the model record for an operator, if it exists.
+func (k Keeper) GetModelRecord(ctx sdk.Context, operator string) (modelregistrytypes.ModelRecord, bool) {
+	store := ctx.KVStore(k.modelRegistryStoreKey)
+	bz := store.Get(modelRegistryKey(operator))
+	if bz == nil {
+		return modelregistrytypes.ModelRecord{}, false
+	}
+	var record modelregistrytypes.ModelRecord
+	if err := json.Unmarshal(bz, &record); err != nil {
+		return modelregistrytypes.ModelRecord{}, false
+	}
+	return record, true
+}
+
+// SetModelRecord writes a model record to the model registry store.
+func (k Keeper) SetModelRecord(ctx sdk.Context, record modelregistrytypes.ModelRecord) {
+	store := ctx.KVStore(k.modelRegistryStoreKey)
+	bz, err := json.Marshal(record)
+	if err != nil {
+		k.Logger(ctx).Error("SetModelRecord: failed to marshal", "operator", record.Operator, "err", err)
+		return
+	}
+	store.Set(modelRegistryKey(record.Operator), bz)
+}
+
+// DeleteModelRecord removes a model record from the model registry store.
+func (k Keeper) DeleteModelRecord(ctx sdk.Context, operator string) {
+	store := ctx.KVStore(k.modelRegistryStoreKey)
+	store.Delete(modelRegistryKey(operator))
+}
+
 // UpdateModelCategoryRep updates category-based reputation in the model registry.
 // Uses EMA: new = 0.95 * old + 0.05 * normalizedScore.
 // If no ModelRecord exists for the operator, the update is skipped.

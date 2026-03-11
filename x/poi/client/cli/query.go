@@ -64,7 +64,16 @@ average of reliability, task throughput, and failure rate.`,
 				return fmt.Errorf("failed to query reputation for %s: %w", args[0], err)
 			}
 
-			return clientCtx.PrintProto(res)
+			if clientCtx.OutputFormat == "json" {
+				return clientCtx.PrintProto(res)
+			}
+			rep := res.Reputation
+			return clientCtx.PrintString(fmt.Sprintf(
+				"Reputation:\n  Validator:    %s\n  Value:       %s\n  Slash Strikes: %d\n",
+				rep.Validator,
+				rep.Value.String(),
+				rep.SlashStrikes,
+			))
 		},
 	}
 
@@ -266,11 +275,15 @@ func CmdQueryParams() *cobra.Command {
 
 			// Reward percent as percentage: 0.001 -> 0.100%
 			pct := params.RewardPercent.MulInt64(100)
+			slashPct := params.SlashPercent.MulInt64(100)
 			return clientCtx.PrintString(fmt.Sprintf(
-				"PoI Parameters:\n  Reward Interval:  %d blocks\n  Reward Percent:   %s%%\n  Min Reputation:   %s\n",
+				"PoI Parameters:\n  Reward Interval:    %d blocks\n  Reward Percent:     %s%%\n  Min Reputation:     %s\n  Slash Threshold:    %d failures\n  Slash Percent:      %s%%\n  Slash Max Strikes:  %d\n",
 				params.RewardInterval,
 				pct.String(),
 				params.MinReputationForReward.String(),
+				params.SlashThreshold,
+				slashPct.String(),
+				params.SlashMaxStrikes,
 			))
 		},
 	}

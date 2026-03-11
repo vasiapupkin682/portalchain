@@ -37,8 +37,9 @@ func (k Keeper) ValidatorReputation(goCtx context.Context, req *types.QueryValid
 		// Return zero-value reputation instead of an error so callers always
 		// get a response for any valid address (new validators start at 0).
 		rep = types.Reputation{
-			Validator: req.Validator,
-			Value:     sdk.ZeroDec(),
+			Validator:    req.Validator,
+			Value:        sdk.ZeroDec(),
+			SlashStrikes: 0,
 		}
 	}
 
