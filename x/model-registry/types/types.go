@@ -15,4 +15,5 @@ type ModelRecord struct {
 	RepCode     string `json:"rep_code"`
 	RepAnalysis string `json:"rep_analysis"`
 	RepGeneral  string `json:"rep_general"`
+	StakedAmount string `json:"staked_amount"` // e.g. "100portal"
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
 	"portalchain/x/model-registry/types"
 )
@@ -15,16 +17,44 @@ import (
 type Keeper struct {
 	cdc      codec.BinaryCodec
 	storeKey storetypes.StoreKey
+	bank     bankkeeper.Keeper
+	account  authkeeper.AccountKeeper
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
+	bank bankkeeper.Keeper,
+	account authkeeper.AccountKeeper,
 ) *Keeper {
 	return &Keeper{
 		cdc:      cdc,
 		storeKey: storeKey,
+		bank:     bank,
+		account:  account,
 	}
+}
+
+func (k Keeper) GetParams(ctx sdk.Context) types.Params {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get([]byte(types.ParamsKey))
+	if bz == nil {
+		return types.DefaultParams()
+	}
+	var params types.Params
+	if err := json.Unmarshal(bz, &params); err != nil {
+		return types.DefaultParams()
+	}
+	return params
+}
+
+func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
+	store := ctx.KVStore(k.storeKey)
+	bz, err := json.Marshal(params)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal model registry params: %w", err))
+	}
+	store.Set([]byte(types.ParamsKey), bz)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

@@ -15,19 +15,39 @@ func (k *msgServer) RegisterModel(goCtx context.Context, msg *types.MsgRegisterM
 		return nil, types.ErrModelAlreadyRegistered
 	}
 
+	params := k.GetParams(ctx)
+	minStake := params.MinStake
+
+	operatorAddr, err := sdk.AccAddressFromBech32(msg.Operator)
+	if err != nil {
+		return nil, err
+	}
+
+	balance := k.bank.GetBalance(ctx, operatorAddr, minStake.Denom)
+	if balance.Amount.LT(minStake.Amount) {
+		return nil, types.ErrInsufficientStake.Wrapf(
+			"required %s, have %s", minStake.String(), balance.String(),
+		)
+	}
+
+	if err := k.bank.SendCoinsFromAccountToModule(ctx, operatorAddr, types.ModuleName, sdk.NewCoins(minStake)); err != nil {
+		return nil, err
+	}
+
 	record := types.ModelRecord{
-		Operator:     msg.Operator,
-		ModelName:    msg.ModelName,
-		Endpoint:     msg.Endpoint,
-		Capabilities: msg.Capabilities,
-		PricePerTask: msg.PricePerTask,
-		Active:       true,
-		RegisteredAt: ctx.BlockHeight(),
-		UpdatedAt:    ctx.BlockHeight(),
-		RepText:      "0.0",
-		RepCode:      "0.0",
-		RepAnalysis:  "0.0",
-		RepGeneral:   "0.0",
+		Operator:      msg.Operator,
+		ModelName:     msg.ModelName,
+		Endpoint:      msg.Endpoint,
+		Capabilities:  msg.Capabilities,
+		PricePerTask:  msg.PricePerTask,
+		Active:        true,
+		RegisteredAt:  ctx.BlockHeight(),
+		UpdatedAt:     ctx.BlockHeight(),
+		RepText:       "0.0",
+		RepCode:       "0.0",
+		RepAnalysis:   "0.0",
+		RepGeneral:    "0.0",
+		StakedAmount:  minStake.String(),
 	}
 
 	k.SetModelRecord(ctx, record)

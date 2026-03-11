@@ -19,6 +19,7 @@ const (
 	FlagCapabilities = "capabilities"
 	FlagPricePerTask = "price-per-task"
 	FlagActive       = "active"
+	FlagStake        = "stake" // optional, MVP: always use min stake from params
 )
 
 func GetTxCmd() *cobra.Command {
@@ -119,6 +120,7 @@ route tasks to it. The --from account is used as the operator address.`,
 	cmd.Flags().String(FlagEndpoint, "", "HTTP(S) endpoint URL (e.g. http://1.2.3.4:8000)")
 	cmd.Flags().String(FlagCapabilities, "", "Comma-separated capabilities (e.g. text,code,analysis)")
 	cmd.Flags().String(FlagPricePerTask, "", "Minimum price per task (e.g. 10uportal)")
+	cmd.Flags().String(FlagStake, "", "Amount to stake (default: min stake from params)")
 	_ = cmd.MarkFlagRequired(FlagModelName)
 	_ = cmd.MarkFlagRequired(FlagEndpoint)
 	_ = cmd.MarkFlagRequired(FlagCapabilities)

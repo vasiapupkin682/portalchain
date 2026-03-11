@@ -8,4 +8,5 @@ var (
 	ErrInvalidEndpoint        = sdkerrors.Register(ModuleName, 1203, "endpoint must start with http:// or https://")
 	ErrUnauthorized           = sdkerrors.Register(ModuleName, 1204, "only the operator can update or deregister their model")
 	ErrInvalidCapabilities    = sdkerrors.Register(ModuleName, 1205, "capabilities cannot be empty")
+	ErrInsufficientStake     = sdkerrors.Register(ModuleName, 1206, "operator does not have enough tokens to stake")
 )

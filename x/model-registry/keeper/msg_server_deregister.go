@@ -23,6 +23,18 @@ func (k *msgServer) DeregisterModel(goCtx context.Context, msg *types.MsgDeregis
 		)
 	}
 
+	if record.StakedAmount != "" && record.StakedAmount != "0" {
+		stakedCoins, err := sdk.ParseCoinsNormalized(record.StakedAmount)
+		if err == nil && !stakedCoins.IsZero() {
+			operatorAddr, addrErr := sdk.AccAddressFromBech32(msg.Operator)
+			if addrErr == nil {
+				if err := k.bank.SendCoinsFromModuleToAccount(ctx, types.ModuleName, operatorAddr, stakedCoins); err != nil {
+					k.Logger(ctx).Error("failed to return stake on deregister", "operator", msg.Operator, "err", err)
+				}
+			}
+		}
+	}
+
 	k.DeleteModelRecord(ctx, msg.Operator)
 
 	ctx.EventManager().EmitEvent(

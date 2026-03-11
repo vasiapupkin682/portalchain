@@ -6,4 +6,5 @@ const (
 	RouterKey  = ModuleName
 
 	ModelRegistryPrefix = "ModelRegistry:"
+	ParamsKey           = "Params"
 )

@@ -28,6 +28,7 @@ func GetQueryCmd() *cobra.Command {
 	cmd.AddCommand(
 		CmdQueryModel(),
 		CmdQueryListActive(),
+		CmdQueryParams(),
 	)
 
 	return cmd
@@ -35,6 +36,52 @@ func GetQueryCmd() *cobra.Command {
 
 func modelKey(operator string) []byte {
 	return []byte(types.ModelRegistryPrefix + operator)
+}
+
+func CmdQueryParams() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "params",
+		Short: "Query model registry parameters",
+		Long:  "Query the current model registry parameters including minimum stake.",
+		Example: `  portalchaind q model-registry params
+  portalchaind q model-registry params --output json`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			resp, err := clientCtx.QueryABCI(abcitypes.RequestQuery{
+				Path: fmt.Sprintf("store/%s/key", types.StoreKey),
+				Data: []byte(types.ParamsKey),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to query params: %w", err)
+			}
+
+			var params types.Params
+			if len(resp.Value) == 0 {
+				params = types.DefaultParams()
+			} else if err := json.Unmarshal(resp.Value, &params); err != nil {
+				params = types.DefaultParams()
+			}
+
+			if clientCtx.OutputFormat == "json" {
+				bz, err := json.MarshalIndent(params, "", "  ")
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintBytes(bz)
+			}
+
+			out := fmt.Sprintf("Model Registry Parameters:\n  Min Stake: %s\n", params.MinStake.String())
+			return clientCtx.PrintString(out)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
 }
 
 func CmdQueryModel() *cobra.Command {
@@ -172,6 +219,10 @@ func printModelRecord(clientCtx client.Context, record types.ModelRecord) error 
 		}
 		return s
 	}
+	stakedStr := record.StakedAmount
+	if stakedStr == "" {
+		stakedStr = "0"
+	}
 	out := fmt.Sprintf(`Model Record:
   Operator:     %s
   Model Name:   %s
@@ -179,6 +230,7 @@ func printModelRecord(clientCtx client.Context, record types.ModelRecord) error 
   Capabilities: %v
   Price/Task:   %s
   Active:       %s
+  Staked:       %s
   Registered:   block %d
   Updated:      block %d
   Rep (text):     %s
@@ -187,7 +239,7 @@ func printModelRecord(clientCtx client.Context, record types.ModelRecord) error 
   Rep (general):  %s
 `,
 		record.Operator, record.ModelName, record.Endpoint, record.Capabilities,
-		record.PricePerTask, activeStr, record.RegisteredAt, record.UpdatedAt,
+		record.PricePerTask, activeStr, stakedStr, record.RegisteredAt, record.UpdatedAt,
 		repStr(record.RepText), repStr(record.RepCode), repStr(record.RepAnalysis), repStr(record.RepGeneral),
 	)
 	return clientCtx.PrintString(out)
