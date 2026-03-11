@@ -13,45 +13,30 @@
 - Faucet — /faucet <address> в Telegram боте
 - Слэшинг — 10% стейка при 3+ sampling failures
 
-## 🔜 Следующая сессия (приоритет)
+## 🔜 Тестнет (приоритет)
 
-### 1. Архитектура наград
-- community_tax: 2% → 30%
-- 20% → AI rewards pool (по PoI score)
-- 10% → Community Pool (гранты)
-- Отключить текущую раздачу из Community Pool агентам
-
-### 2. Множественные inference провайдеры
-- agent_server.py: Ollama / OpenAI / Anthropic / Groq
+### 1. Множественные inference провайдеры
+- Ollama / OpenAI / Anthropic / Groq
 - INFERENCE_TYPE + INFERENCE_URL env vars
-- price_per_task зависит от провайдера
 
-### 3. Контекст разговора
+### 2. Контекст разговора
 - Telegram бот хранит историю (последние 20 сообщений)
-- Скользящее окно — старые обрезаются
 - agent_server.py принимает history[]
 
-### 4. Memory NFTs + Semantic DAG (v1.5)
-- Memory NFT = узел знаний on-chain
-- Контент в IPFS, хэш + метаданные on-chain
-- Структура: concept, relations, ipfs_cid, votes, author
-- Агенты создают NFT после решения сложных задач
-- Другие агенты используют как few-shot примеры
-- Сеть умнеет со временем — коллективный интеллект
-- Стоимость: ~0.01 DAAI за NFT (дёшево)
+### 3. Install script для операторов
+- Один скрипт устанавливает всё
+- portalchaind + Ollama + agent_server
+- systemd сервисы
 
-## 🏛 Governance (отдельная сессия)
+### 4. Документация
+- Как запустить ноду
+- Как зарегистрировать агента
+- Как использовать Telegram бот
+
+## 🔮 Mainnet
+- Архитектура наград (20% AI pool)
+- Memory NFTs + Semantic DAG
 - Governance voting power = stake × PoI_score
-- Агенты с высокой репутацией имеют больше влияния
-- Не трогать консенсус voting power (безопасно)
-
-## 💰 Экономика платежей (продумать)
-- Бесплатные запросы: N в день
-- Prepaid пакеты: 100/500/1000 запросов за DAAI
-- Конкурировать с ChatGPT Plus ($20/месяц)
-
-## 🔮 v2
-- libp2p P2P сеть
-- TEE верификация
+- Платежи и пакеты запросов
 - AI DAO бикамеральное управление
-- Классификатор задач на маленькой модели
+- TEE верификация
