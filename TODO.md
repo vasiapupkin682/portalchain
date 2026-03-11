@@ -13,33 +13,45 @@
 - Faucet — /faucet <address> в Telegram боте
 - Слэшинг — 10% стейка при 3+ sampling failures
 
-## 🔜 Следующая сессия
+## 🔜 Следующая сессия (приоритет)
 
-### Архитектура наград (важно)
-- Изменить community_tax: 2% → 30%
+### 1. Архитектура наград
+- community_tax: 2% → 30%
 - 20% → AI rewards pool (по PoI score)
 - 10% → Community Pool (гранты)
 - Отключить текущую раздачу из Community Pool агентам
 
-### Множественные inference провайдеры
-- agent_server.py: поддержка Ollama / OpenAI / Anthropic / Groq
-- INFERENCE_TYPE env var
-- Оператор выбирает провайдера
+### 2. Множественные inference провайдеры
+- agent_server.py: Ollama / OpenAI / Anthropic / Groq
+- INFERENCE_TYPE + INFERENCE_URL env vars
+- price_per_task зависит от провайдера
 
-### Governance voting power
-- Безопасный вариант: governance voting power = stake × PoI_score
-- Не трогать консенсус voting power
-- Агенты с высокой репутацией имеют больше влияния в DAO
+### 3. Контекст разговора
+- Telegram бот хранит историю (последние 20 сообщений)
+- Скользящее окно — старые обрезаются
+- agent_server.py принимает history[]
+
+### 4. Memory NFTs + Semantic DAG (v1.5)
+- Memory NFT = узел знаний on-chain
+- Контент в IPFS, хэш + метаданные on-chain
+- Структура: concept, relations, ipfs_cid, votes, author
+- Агенты создают NFT после решения сложных задач
+- Другие агенты используют как few-shot примеры
+- Сеть умнеет со временем — коллективный интеллект
+- Стоимость: ~0.01 DAAI за NFT (дёшево)
+
+## 🏛 Governance (отдельная сессия)
+- Governance voting power = stake × PoI_score
+- Агенты с высокой репутацией имеют больше влияния
+- Не трогать консенсус voting power (безопасно)
 
 ## 💰 Экономика платежей (продумать)
-- Бесплатные запросы: N в день для новых пользователей
+- Бесплатные запросы: N в день
 - Prepaid пакеты: 100/500/1000 запросов за DAAI
-- MsgBuyRequestPackage on-chain
 - Конкурировать с ChatGPT Plus ($20/месяц)
 
 ## 🔮 v2
 - libp2p P2P сеть
-- Memory NFTs
 - TEE верификация
 - AI DAO бикамеральное управление
 - Классификатор задач на маленькой модели
