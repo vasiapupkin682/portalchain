@@ -50,11 +50,12 @@ async def ask(update: Update, context):
             result = data["result"]
             latency_ms = data["latency_ms"]
             epoch = data["epoch"]
+            task_type = data.get("task_type", "general")
             reply = (
                 f"{result}\n\n"
                 f"─────────────────\n"
                 f"⛓ Recorded on PortalChain\n"
-                f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms"
+                f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms | 🏷 {task_type}"
             )
             await update.message.reply_text(reply)
         else:

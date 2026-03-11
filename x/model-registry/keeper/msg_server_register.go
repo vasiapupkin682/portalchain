@@ -24,6 +24,10 @@ func (k *msgServer) RegisterModel(goCtx context.Context, msg *types.MsgRegisterM
 		Active:       true,
 		RegisteredAt: ctx.BlockHeight(),
 		UpdatedAt:    ctx.BlockHeight(),
+		RepText:      "0.0",
+		RepCode:      "0.0",
+		RepAnalysis:  "0.0",
+		RepGeneral:   "0.0",
 	}
 
 	k.SetModelRecord(ctx, record)

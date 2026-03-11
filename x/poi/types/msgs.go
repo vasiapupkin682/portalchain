@@ -18,7 +18,11 @@ func NewMsgSubmitEpochReport(
 	reliability sdk.Dec,
 	samplingFailures int64,
 	timestamp int64,
+	taskType string,
 ) *MsgSubmitEpochReport {
+	if taskType == "" {
+		taskType = "general"
+	}
 	return &MsgSubmitEpochReport{
 		Epoch:            epoch,
 		Validator:        validator,
@@ -28,6 +32,7 @@ func NewMsgSubmitEpochReport(
 		Reliability:      reliability,
 		SamplingFailures: samplingFailures,
 		Timestamp:        timestamp,
+		TaskType:         taskType,
 	}
 }
 

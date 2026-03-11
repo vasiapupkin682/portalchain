@@ -24,6 +24,10 @@ var _ types.FullMsgServer = &msgServer{}
 func (k msgServer) SubmitEpochReport(goCtx context.Context, msg *types.MsgSubmitEpochReport) (*types.MsgSubmitEpochReportResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	taskType := msg.TaskType
+	if taskType == "" {
+		taskType = "general"
+	}
 	report := types.EpochReport{
 		Epoch:            msg.Epoch,
 		Validator:        msg.Validator,
@@ -33,6 +37,7 @@ func (k msgServer) SubmitEpochReport(goCtx context.Context, msg *types.MsgSubmit
 		Reliability:      msg.Reliability,
 		SamplingFailures: msg.SamplingFailures,
 		Timestamp:        msg.Timestamp,
+		TaskType:         taskType,
 	}
 
 	k.SetEpochReport(ctx, report)

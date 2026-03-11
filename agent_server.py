@@ -42,6 +42,24 @@ class TaskRequest(BaseModel):
     temperature: float = 0.7
 
 
+def classify_task(prompt: str) -> str:
+    """Classify task type from prompt for category-based reputation."""
+    prompt_lower = prompt.lower()
+    code_keywords = [
+        "code", "function", "python", "javascript", "debug",
+        "script", "программ", "код", "функци",
+    ]
+    analysis_keywords = [
+        "analyze", "compare", "research", "анализ",
+        "сравни", "исследуй", "объясни подробно",
+    ]
+    if any(w in prompt_lower for w in code_keywords):
+        return "code"
+    if any(w in prompt_lower for w in analysis_keywords):
+        return "analysis"
+    return "text"
+
+
 class TaskResponse(BaseModel):
     result: str
     task_hash: str
@@ -49,6 +67,7 @@ class TaskResponse(BaseModel):
     latency_ms: int
     agent: str
     epoch: int
+    task_type: str = "general"
 
 
 class StatusResponse(BaseModel):
@@ -188,6 +207,10 @@ class PortalChainAgent:
         avg_latency = int(total_latency / n) if n else 0
         reliability = success_count / n if n else 0.0
 
+        # Use most common task_type from buffer
+        task_types = [t.get("task_type", "general") for t in self.task_buffer]
+        task_type = max(set(task_types), key=task_types.count) if task_types else "general"
+
         cmd = [
             "portalchaind", "tx", "poi", "submit-report",
             "--epoch", str(self.epoch_counter),
@@ -196,6 +219,7 @@ class PortalChainAgent:
             "--avg-latency", str(avg_latency),
             "--reliability", str(reliability),
             "--sampling-failures", "0",
+            "--task-type", task_type,
             "--from", self.validator,
             "--chain-id", self.chain_id,
             "--yes",
@@ -233,6 +257,8 @@ class PortalChainAgent:
         temperature: float = 0.7,
     ) -> TaskResponse:
         """Run a single task and return response. Buffers for PoI report."""
+        task_type = classify_task(prompt)
+
         start = time.perf_counter()
         result_text, success = self._run_inference(prompt, max_tokens, temperature)
         latency_ms = int((time.perf_counter() - start) * 1000)
@@ -251,6 +277,7 @@ class PortalChainAgent:
             "result_hash": result_hash,
             "latency_ms": latency_ms,
             "success": success,
+            "task_type": task_type,
         })
 
         if len(self.task_buffer) >= self.buffer_size:
@@ -264,6 +291,7 @@ class PortalChainAgent:
             latency_ms=latency_ms,
             agent=self.address,
             epoch=self.epoch_counter,
+            task_type=task_type,
         )
 
 

@@ -166,6 +166,12 @@ func printModelRecord(clientCtx client.Context, record types.ModelRecord) error 
 	if record.Active {
 		activeStr = "yes"
 	}
+	repStr := func(s string) string {
+		if s == "" {
+			return "0.0"
+		}
+		return s
+	}
 	out := fmt.Sprintf(`Model Record:
   Operator:     %s
   Model Name:   %s
@@ -175,9 +181,14 @@ func printModelRecord(clientCtx client.Context, record types.ModelRecord) error 
   Active:       %s
   Registered:   block %d
   Updated:      block %d
+  Rep (text):     %s
+  Rep (code):     %s
+  Rep (analysis): %s
+  Rep (general):  %s
 `,
 		record.Operator, record.ModelName, record.Endpoint, record.Capabilities,
 		record.PricePerTask, activeStr, record.RegisteredAt, record.UpdatedAt,
+		repStr(record.RepText), repStr(record.RepCode), repStr(record.RepAnalysis), repStr(record.RepGeneral),
 	)
 	return clientCtx.PrintString(out)
 }

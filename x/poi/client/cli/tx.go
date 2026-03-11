@@ -22,6 +22,7 @@ const (
 	FlagReliability      = "reliability"
 	FlagSamplingFailures = "sampling-failures"
 	FlagTimestamp        = "timestamp"
+	FlagTaskType         = "task-type"
 )
 
 func GetTxCmd() *cobra.Command {
@@ -119,6 +120,11 @@ to the current unix time when omitted.`,
 				ts = time.Now().Unix()
 			}
 
+			taskType, _ := cmd.Flags().GetString(FlagTaskType)
+			if taskType == "" {
+				taskType = "general"
+			}
+
 			validator := clientCtx.GetFromAddress().String()
 
 			msg := types.NewMsgSubmitEpochReport(
@@ -130,6 +136,7 @@ to the current unix time when omitted.`,
 				reliability,
 				samplingFailures,
 				ts,
+				taskType,
 			)
 
 			if err := msg.ValidateBasic(); err != nil {
@@ -147,6 +154,7 @@ to the current unix time when omitted.`,
 	cmd.Flags().String(FlagReliability, "1.0", "Reliability score between 0 and 1 (decimal)")
 	cmd.Flags().Int64(FlagSamplingFailures, 0, "Number of sampling failures observed")
 	cmd.Flags().Int64(FlagTimestamp, 0, "Unix timestamp; defaults to current time when 0")
+	cmd.Flags().String(FlagTaskType, "general", "Task category: text|code|analysis|general")
 
 	_ = cmd.MarkFlagRequired(FlagEpoch)
 

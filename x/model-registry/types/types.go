@@ -10,4 +10,9 @@ type ModelRecord struct {
 	Active       bool     `json:"active"`
 	RegisteredAt int64    `json:"registered_at"`
 	UpdatedAt    int64    `json:"updated_at"`
+	// Category-based reputations (sdk.Dec as string, default "0.0")
+	RepText     string `json:"rep_text"`
+	RepCode     string `json:"rep_code"`
+	RepAnalysis string `json:"rep_analysis"`
+	RepGeneral  string `json:"rep_general"`
 }

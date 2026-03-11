@@ -17,6 +17,7 @@ message EpochReport {
   ];
   int64 sampling_failures = 7;
   int64 timestamp = 8;
+  string task_type = 9; // "text" | "code" | "analysis" | "general"; empty = "general"
 }
 
 message Reputation {

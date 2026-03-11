@@ -546,6 +546,7 @@ func New(
 	app.PoiKeeper = *poimodulekeeper.NewKeeper(
 		appCodec,
 		keys[poimoduletypes.StoreKey],
+		keys[modelregistrytypes.StoreKey],
 		app.AccountKeeper,
 		app.StakingKeeper,
 		app.BankKeeper,

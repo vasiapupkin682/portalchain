@@ -68,10 +68,12 @@ func setupPoiKeeper(t *testing.T) (*poikeeper.Keeper, sdk.Context, *mockAccountK
 	t.Helper()
 
 	storeKey := sdk.NewKVStoreKey(poitypes.StoreKey)
+	modelRegistryStoreKey := sdk.NewKVStoreKey("modelregistry")
 
 	db := tmdb.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+	stateStore.MountStoreWithDB(modelRegistryStoreKey, storetypes.StoreTypeIAVL, db)
 	require.NoError(t, stateStore.LoadLatestVersion())
 
 	registry := codectypes.NewInterfaceRegistry()
@@ -82,7 +84,7 @@ func setupPoiKeeper(t *testing.T) (*poikeeper.Keeper, sdk.Context, *mockAccountK
 		moduleAddrs: make(map[string]sdk.AccAddress),
 	}
 
-	k := poikeeper.NewKeeper(cdc, storeKey, accountK, &mockStakingKeeper{}, &mockBankKeeper{})
+	k := poikeeper.NewKeeper(cdc, storeKey, modelRegistryStoreKey, accountK, &mockStakingKeeper{}, &mockBankKeeper{})
 
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
 		ChainID: testChainID,

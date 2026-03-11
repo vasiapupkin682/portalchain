@@ -109,6 +109,13 @@ func (k Keeper) UpdateReputation(ctx sdk.Context, report types.EpochReport) {
 
 	// Power adjustment is best-effort; never roll back a report over it
 	k.adjustValidatorPower(ctx, report.Validator, newRep)
+
+	// Update category reputation in model-registry (if operator has a registered model)
+	taskType := report.TaskType
+	if taskType == "" {
+		taskType = "general"
+	}
+	k.UpdateModelCategoryRep(ctx, report.Validator, taskType, normalizedScore)
 }
 
 func (k Keeper) adjustValidatorPower(ctx sdk.Context, validator string, newRep sdk.Dec) {
