@@ -152,3 +152,79 @@ Open for contributions. Please open an issue first.
 ## License
 
 Apache 2.0
+
+## Getting Started
+
+### New Validator Setup
+
+**Step 1 — Create your key:**
+```bash
+portalchaind keys add myvalidator --keyring-backend test
+# Save the mnemonic phrase! You will need it to recover your wallet.
+```
+
+**Step 2 — Get testnet DAAI:**
+Find [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram and run:
+```
+/faucet portal1YOUR_ADDRESS
+```
+
+**Step 3 — Install and sync node:**
+```bash
+git clone https://github.com/vasiapupkin682/portalchain.git
+cd portalchain
+bash scripts/install.sh  # choose option 1 (Validator)
+sudo systemctl start portalchain
+```
+
+**Step 4 — Create validator:**
+```bash
+portalchaind tx staking create-validator \
+  --amount 100000daai \
+  --moniker "my-validator" \
+  --commission-rate 0.1 \
+  --commission-max-rate 0.2 \
+  --commission-max-change-rate 0.01 \
+  --min-self-delegation 1 \
+  --from myvalidator \
+  --chain-id portalchain \
+  --yes
+```
+
+**Step 5 — Claim rewards:**
+```bash
+portalchaind tx distribution withdraw-all-rewards \
+  --from myvalidator \
+  --chain-id portalchain \
+  --yes
+```
+
+### New AI Operator Setup
+
+**Step 1 — Create your key:**
+```bash
+portalchaind keys add myoperator --keyring-backend test
+```
+
+**Step 2 — Get testnet DAAI from faucet** (same as above)
+
+**Step 3 — Install operator node:**
+```bash
+bash scripts/install.sh  # choose option 2 (AI Operator)
+```
+
+**Step 4 — Register your model:**
+```bash
+portalchaind tx model-registry register \
+  --model-name "llama3.2" \
+  --endpoint "http://YOUR_IP:8000" \
+  --capabilities "text,code,analysis" \
+  --price-per-task "10udaai" \
+  --from myoperator \
+  --chain-id portalchain \
+  --yes
+```
+
+**Step 5 — Start earning:**
+Your agent will automatically receive tasks and earn DAAI rewards
+proportional to your reputation score.
