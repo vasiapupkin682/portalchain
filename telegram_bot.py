@@ -14,10 +14,15 @@ import time
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.request import HTTPXRequest
 
 AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8000")  # fallback
 CHAIN_RPC = os.getenv("CHAIN_RPC", "http://localhost:26657")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+MAX_HISTORY = 20
+
+# conversation_history: chat_id -> list of {"role": "user"|"assistant", "content": str}
+conversation_history: dict[int, list[dict[str, str]]] = {}
 
 FAUCET_FILE = "faucet_history.json"
 FAUCET_AMOUNT = "1000daai"
@@ -154,6 +159,7 @@ async def start(update: Update, context):
         "I route your questions to the best available agent.\n\n"
         "Commands:\n"
         "/ask <question> — Ask me anything\n"
+        "/forget — Clear conversation history\n"
         "/status — Check agent status\n"
         "/reputation — Check my blockchain reputation\n"
         "/agents — List active AI agents in network\n"
@@ -162,12 +168,31 @@ async def start(update: Update, context):
     )
 
 
+def get_history_for_chat(chat_id: int) -> list[dict[str, str]]:
+    """Get conversation history for a chat, trimmed to MAX_HISTORY."""
+    history = conversation_history.get(chat_id, [])
+    if len(history) > MAX_HISTORY:
+        history = history[-MAX_HISTORY:]
+        conversation_history[chat_id] = history
+    return history
+
+
+def append_to_history(chat_id: int, role: str, content: str):
+    """Append a message to conversation history."""
+    if chat_id not in conversation_history:
+        conversation_history[chat_id] = []
+    conversation_history[chat_id].append({"role": role, "content": content})
+    if len(conversation_history[chat_id]) > MAX_HISTORY:
+        conversation_history[chat_id] = conversation_history[chat_id][-MAX_HISTORY:]
+
+
 async def ask(update: Update, context):
     if not context.args:
         await update.message.reply_text("Usage: /ask <your question>")
         return
 
     question = " ".join(context.args)
+    chat_id = update.effective_chat.id if update.effective_chat else 0
 
     # Show typing indicator
     await update.message.reply_text("🤔 Thinking...")
@@ -175,11 +200,12 @@ async def ask(update: Update, context):
     task_type = classify_task(question)
     models = get_active_models()
     endpoint = select_agent(models, task_type)
+    history = get_history_for_chat(chat_id)
 
     try:
         response = requests.post(
             f"{endpoint}/task",
-            json={"prompt": question, "max_tokens": 500},
+            json={"prompt": question, "max_tokens": 500, "history": history},
             timeout=120,
         )
 
@@ -189,6 +215,10 @@ async def ask(update: Update, context):
             latency_ms = data["latency_ms"]
             epoch = data["epoch"]
             task_type_resp = data.get("task_type", task_type)
+
+            # Update conversation history
+            append_to_history(chat_id, "user", question)
+            append_to_history(chat_id, "assistant", result)
 
             if len(models) > 1:
                 reply = (
@@ -232,6 +262,7 @@ async def status(update: Update, context):
         except Exception:
             pass
 
+        inference = data.get("inference_available", data.get("ollama_available", False))
         reply = (
             f"🤖 Agent Status\n"
             f"─────────────────\n"
@@ -243,7 +274,7 @@ async def status(update: Update, context):
             f"❌ Tasks failed: {data['tasks_failed']}\n"
             f"📊 Current epoch: {data['current_epoch']}\n"
             f"🔄 Buffer: {data['buffer_size']} tasks\n"
-            f"🧠 Ollama: {'✅' if data['ollama_available'] else '❌'}"
+            f"🧠 Inference: {data.get('inference_provider', 'ollama')}/{data.get('inference_model', 'n/a')} {'✅' if inference else '❌'}"
         )
         await update.message.reply_text(reply)
     except Exception as e:
@@ -296,6 +327,13 @@ async def agents(update: Update, context):
         )
 
     await update.message.reply_text("\n".join(lines))
+
+
+async def forget(update: Update, context):
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if chat_id in conversation_history:
+        conversation_history[chat_id] = []
+    await update.message.reply_text("🧹 Conversation history cleared.")
 
 
 async def faucet(update: Update, context):
@@ -387,7 +425,13 @@ def main():
         print("   export TELEGRAM_BOT_TOKEN=your_token_here")
         return
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    request = HTTPXRequest(
+        connection_pool_size=8,
+        read_timeout=120,
+        write_timeout=120,
+        connect_timeout=30,
+    )
+    app = Application.builder().token(BOT_TOKEN).request(request).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
@@ -396,6 +440,7 @@ def main():
     app.add_handler(CommandHandler("reputation", reputation))
     app.add_handler(CommandHandler("agents", agents))
     app.add_handler(CommandHandler("faucet", faucet))
+    app.add_handler(CommandHandler("forget", forget))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("🤖 PortalChain Telegram bot started")

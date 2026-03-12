@@ -2,7 +2,8 @@
 """
 PortalChain AI Agent Server — real task execution and PoI reporting.
 
-HTTP server that executes tasks via Ollama, buffers results, and submits
+HTTP server that executes tasks via configurable inference providers
+(Ollama, OpenAI-compatible, Anthropic), buffers results, and submits
 real metrics to the PortalChain blockchain.
 """
 
@@ -12,17 +13,227 @@ import logging
 import os
 import subprocess
 import time
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Any, Optional
 
 import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# ========== Configuration ==========
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2"
-OLLAMA_TIMEOUT = 120
+# ========== Inference Configuration (env vars) ==========
+INFERENCE_TYPE = os.getenv("INFERENCE_TYPE", "ollama").lower()
+INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:11434").rstrip("/")
+INFERENCE_API_KEY = os.getenv("INFERENCE_API_KEY", "")
+INFERENCE_MODEL = os.getenv("INFERENCE_MODEL", "llama3.2")
+INFERENCE_TIMEOUT = int(os.getenv("INFERENCE_TIMEOUT", "120"))
 
+SYSTEM_PROMPT = (
+    "You are a helpful AI assistant. Always respond in the same language as "
+    "the user's question. If the question is in Russian, respond in Russian. "
+    "If in English, respond in English."
+)
+
+
+def _build_messages(history: list[dict[str, str]], prompt: str) -> list[dict[str, str]]:
+    """Build message array from history + new user prompt."""
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in history:
+        if isinstance(h, dict) and h.get("role") and h.get("content"):
+            messages.append({"role": h["role"], "content": str(h["content"])})
+    messages.append({"role": "user", "content": prompt})
+    return messages
+
+
+class InferenceProvider(ABC):
+    """Abstract inference provider."""
+
+    @abstractmethod
+    def generate(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        max_tokens: int = 500,
+        temperature: float = 0.7,
+    ) -> tuple[str, bool]:
+        """Returns (result_text, success)."""
+        pass
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if the provider is reachable."""
+        pass
+
+
+class OllamaProvider(InferenceProvider):
+    """Ollama API (local models)."""
+
+    def generate(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        max_tokens: int = 500,
+        temperature: float = 0.7,
+    ) -> tuple[str, bool]:
+        messages = _build_messages(history, prompt)
+        try:
+            resp = requests.post(
+                f"{INFERENCE_URL}/api/chat",
+                json={
+                    "model": INFERENCE_MODEL,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": temperature,
+                    },
+                },
+                timeout=INFERENCE_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return "", False
+            text = resp.json().get("message", {}).get("content", "").strip()
+            return text, True
+        except Exception as e:
+            logger.error("Ollama inference failed: %s", e)
+            return "", False
+
+    def is_available(self) -> bool:
+        try:
+            r = requests.get(f"{INFERENCE_URL}/api/tags", timeout=3)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+
+class OpenAICompatibleProvider(InferenceProvider):
+    """OpenAI API format (Groq, Together, OpenRouter, vLLM, LM Studio, etc.)."""
+
+    def generate(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        max_tokens: int = 500,
+        temperature: float = 0.7,
+    ) -> tuple[str, bool]:
+        messages = _build_messages(history, prompt)
+        headers = {"Content-Type": "application/json"}
+        if INFERENCE_API_KEY:
+            headers["Authorization"] = f"Bearer {INFERENCE_API_KEY}"
+        try:
+            resp = requests.post(
+                f"{INFERENCE_URL}/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": INFERENCE_MODEL,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                },
+                timeout=INFERENCE_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return "", False
+            data = resp.json()
+            text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            return text, True
+        except Exception as e:
+            logger.error("OpenAI-compatible inference failed: %s", e)
+            return "", False
+
+    def is_available(self) -> bool:
+        try:
+            headers = {"Content-Type": "application/json"}
+            if INFERENCE_API_KEY:
+                headers["Authorization"] = f"Bearer {INFERENCE_API_KEY}"
+            r = requests.get(
+                f"{INFERENCE_URL}/v1/models",
+                headers=headers,
+                timeout=5,
+            )
+            return r.status_code == 200
+        except Exception:
+            try:
+                r = requests.get(INFERENCE_URL, timeout=3)
+                return r.status_code < 500
+            except Exception:
+                return False
+
+
+class AnthropicProvider(InferenceProvider):
+    """Anthropic Claude API."""
+
+    def generate(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        max_tokens: int = 500,
+        temperature: float = 0.7,
+    ) -> tuple[str, bool]:
+        messages = _build_messages(history, prompt)
+        # Anthropic uses "system" as separate field, not in messages
+        system_msg = None
+        api_messages = []
+        for m in messages:
+            if m.get("role") == "system":
+                system_msg = m.get("content", "")
+            else:
+                api_messages.append(m)
+        body: dict[str, Any] = {
+            "model": INFERENCE_MODEL,
+            "max_tokens": max_tokens,
+            "messages": api_messages,
+        }
+        if system_msg:
+            body["system"] = system_msg
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": INFERENCE_API_KEY,
+            "anthropic-version": "2023-06-01",
+        }
+        try:
+            resp = requests.post(
+                f"{INFERENCE_URL}/v1/messages",
+                headers=headers,
+                json=body,
+                timeout=INFERENCE_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                return "", False
+            data = resp.json()
+            content = data.get("content", [])
+            if content and isinstance(content[0], dict):
+                text = content[0].get("text", "").strip()
+            else:
+                text = ""
+            return text, True
+        except Exception as e:
+            logger.error("Anthropic inference failed: %s", e)
+            return "", False
+
+    def is_available(self) -> bool:
+        if not INFERENCE_API_KEY:
+            return False
+        try:
+            headers = {"x-api-key": INFERENCE_API_KEY, "anthropic-version": "2023-06-01"}
+            r = requests.get(f"{INFERENCE_URL}/v1/models", headers=headers, timeout=5)
+            return r.status_code == 200
+        except Exception:
+            return False
+
+
+def get_inference_provider() -> InferenceProvider:
+    """Factory: return provider based on INFERENCE_TYPE."""
+    if INFERENCE_TYPE == "ollama":
+        return OllamaProvider()
+    if INFERENCE_TYPE == "openai_compatible":
+        return OpenAICompatibleProvider()
+    if INFERENCE_TYPE == "anthropic":
+        return AnthropicProvider()
+    logger.warning("Unknown INFERENCE_TYPE=%s, defaulting to ollama", INFERENCE_TYPE)
+    return OllamaProvider()
+
+
+# ========== Logging ==========
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -32,6 +243,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PortalChain Agent", version="1.0.0")
 agent: Optional["PortalChainAgent"] = None
+inference_provider = None
 
 
 # ========== Request/Response Models ==========
@@ -40,6 +252,7 @@ class TaskRequest(BaseModel):
     prompt: str
     max_tokens: int = 500
     temperature: float = 0.7
+    history: list[dict[str, str]] = []
 
 
 def classify_task(prompt: str) -> str:
@@ -78,7 +291,9 @@ class StatusResponse(BaseModel):
     tasks_failed: int
     current_epoch: int
     buffer_size: int
-    ollama_available: bool
+    inference_provider: str
+    inference_model: str
+    inference_available: bool
 
 
 class HealthResponse(BaseModel):
@@ -158,42 +373,23 @@ class PortalChainAgent:
             logger.debug("Could not query reputation: %s", e)
         return 0.0
 
-    def _check_ollama(self) -> bool:
-        try:
-            r = requests.get("http://localhost:11434/api/tags", timeout=3)
-            return r.status_code == 200
-        except Exception:
+    def _check_inference(self) -> bool:
+        """Check if inference provider is reachable."""
+        if inference_provider is None:
             return False
+        return inference_provider.is_available()
 
-    def _run_inference(self, prompt: str, max_tokens: int, temperature: float) -> tuple[str, bool]:
+    def _run_inference(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+    ) -> tuple[str, bool]:
         """Returns (result_text, success)."""
-        system_prompt = (
-            "You are a helpful AI assistant. Always respond in the same language as "
-            "the user's question. If the question is in Russian, respond in Russian. "
-            "If in English, respond in English."
-        )
-        try:
-            resp = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "system": system_prompt,
-                    "stream": False,
-                    "options": {
-                        "num_predict": max_tokens,
-                        "temperature": temperature,
-                    },
-                },
-                timeout=OLLAMA_TIMEOUT,
-            )
-            if resp.status_code != 200:
-                return "", False
-            text = resp.json().get("response", "").strip()
-            return text, True
-        except Exception as e:
-            logger.error("%s Ollama inference failed: %s", time.strftime("%Y-%m-%d %H:%M:%S"), e)
+        if inference_provider is None:
             return "", False
+        return inference_provider.generate(prompt, history, max_tokens, temperature)
 
     def submit_poi_report(self):
         """Submit real metrics from task_buffer to blockchain."""
@@ -253,14 +449,17 @@ class PortalChainAgent:
     def execute_task(
         self,
         prompt: str,
+        history: list[dict[str, str]] | None = None,
         max_tokens: int = 500,
         temperature: float = 0.7,
     ) -> TaskResponse:
         """Run a single task and return response. Buffers for PoI report."""
+        if history is None:
+            history = []
         task_type = classify_task(prompt)
 
         start = time.perf_counter()
-        result_text, success = self._run_inference(prompt, max_tokens, temperature)
+        result_text, success = self._run_inference(prompt, history, max_tokens, temperature)
         latency_ms = int((time.perf_counter() - start) * 1000)
 
         task_hash = hashlib.sha256(prompt.encode()).hexdigest()
@@ -301,7 +500,7 @@ class PortalChainAgent:
 def post_task(req: TaskRequest):
     if agent is None:
         raise HTTPException(status_code=503, detail="Agent not initialized")
-    if not agent._check_ollama():
+    if not agent._check_inference():
         raise HTTPException(
             status_code=503,
             detail="inference unavailable",
@@ -309,6 +508,7 @@ def post_task(req: TaskRequest):
     try:
         resp = agent.execute_task(
             prompt=req.prompt,
+            history=req.history,
             max_tokens=req.max_tokens,
             temperature=req.temperature,
         )
@@ -330,7 +530,9 @@ def get_status():
         tasks_failed=agent.stats["failed"],
         current_epoch=agent.epoch_counter,
         buffer_size=len(agent.task_buffer),
-        ollama_available=agent._check_ollama(),
+        inference_provider=INFERENCE_TYPE,
+        inference_model=INFERENCE_MODEL,
+        inference_available=agent._check_inference(),
     )
 
 
@@ -391,6 +593,10 @@ if __name__ == "__main__":
 
     agent = PortalChainAgent(args.validator, chain_id=args.chain_id)
     agent.buffer_size = args.buffer_size
+    inference_provider = get_inference_provider()
 
-    logger.info("Starting agent server on port %d (buffer_size=%d)", args.port, agent.buffer_size)
+    logger.info(
+        "Starting agent server on port %d (buffer_size=%d, inference=%s, model=%s)",
+        args.port, agent.buffer_size, INFERENCE_TYPE, INFERENCE_MODEL,
+    )
     uvicorn.run(app, host="0.0.0.0", port=args.port)
