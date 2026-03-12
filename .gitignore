@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+portalchaind
+__pycache__/
+*.pyc
+faucet_history.json
+agent_alice_epoch.json
+agent_bob_epoch.json
