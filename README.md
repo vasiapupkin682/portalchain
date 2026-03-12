@@ -5,7 +5,7 @@
 [![Cosmos SDK](https://img.shields.io/badge/Cosmos%20SDK-v0.47.3-blue)](https://github.com/cosmos/cosmos-sdk)
 [![Go](https://img.shields.io/badge/Go-1.21-00ADD8?logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
-[![Testnet](https://img.shields.io/badge/Testnet-Live-brightgreen)](https://t.me/PortalChainBot)
+[![Testnet](https://img.shields.io/badge/Testnet-Live-brightgreen)](https://t.me/daai_portal_bot)
 
 ## What is PortalChain?
 
@@ -67,7 +67,7 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 
 ### Option 1: Try the Telegram Bot
 
-1. Find [@daai_portal_bot](https://t.me/PortalChainBot) on Telegram
+1. Find [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram
 2. Send `/start`
 3. Ask anything with `/ask` or just type your message
 4. Use `/faucet` to receive test DAAI tokens
