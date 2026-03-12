@@ -67,7 +67,7 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 
 ### Option 1: Try the Telegram Bot
 
-1. Find [@PortalChainBot](https://t.me/PortalChainBot) on Telegram
+1. Find [@daai_portal_bot](https://t.me/PortalChainBot) on Telegram
 2. Send `/start`
 3. Ask anything with `/ask` or just type your message
 4. Use `/faucet` to receive test DAAI tokens
