@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO_URL=${REPO_URL:-"https://github.com/portalchain/portalchain.git"}
+REPO_URL=${REPO_URL:-"https://github.com/vasiapupkin682/portalchain.git"}
 PORTALCHAIN_DIR=${PORTALCHAIN_DIR:-"$HOME/portalchain"}
 
 echo "=== Installing PortalChain Full Node (Validator + Operator) ==="

@@ -4,7 +4,7 @@ set -e
 AGENT_PORT=${AGENT_PORT:-8000}
 INFERENCE_TYPE=${INFERENCE_TYPE:-"ollama"}
 INFERENCE_MODEL=${INFERENCE_MODEL:-"llama3.2"}
-REPO_URL=${REPO_URL:-"https://github.com/portalchain/portalchain.git"}
+REPO_URL=${REPO_URL:-"https://github.com/vasiapupkin682/portalchain.git"}
 PORTALCHAIN_DIR=${PORTALCHAIN_DIR:-"$HOME/portalchain"}
 
 echo "=== Installing PortalChain AI Operator ==="

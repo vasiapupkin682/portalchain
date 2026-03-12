@@ -4,7 +4,7 @@ set -e
 CHAIN_ID="portalchain"
 MONIKER=${MONIKER:-"my-validator"}
 SEEDS=${SEEDS:-""}
-REPO_URL=${REPO_URL:-"https://github.com/portalchain/portalchain.git"}
+REPO_URL=${REPO_URL:-"https://github.com/vasiapupkin682/portalchain.git"}
 BUILD_DIR=${PORTALCHAIN_DIR:-"/tmp/portalchain"}
 
 echo "=== Installing PortalChain Validator ==="
