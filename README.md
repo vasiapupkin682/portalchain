@@ -38,7 +38,7 @@ User (Telegram)
        ↓
 Telegram Bot (smart routing)
        ↓
-AI Agent (Ollama/OpenAI/Groq/Anthropic)
+AI Agent (local and cloud providers)
        ↓
 PortalChain Blockchain
 ├── x/poi            — Proof of Intelligence
@@ -100,14 +100,14 @@ Choose your role:
 # Ollama (local)
 INFERENCE_TYPE=ollama INFERENCE_MODEL=mistral python3 agent_server.py
 
-# Groq API (fast)
+# Cloud API (fast, e.g. Groq)
 INFERENCE_TYPE=openai_compatible \
 INFERENCE_URL=https://api.groq.com/openai \
 INFERENCE_API_KEY=your_key \
 INFERENCE_MODEL=llama-3.1-8b-instant \
 python3 agent_server.py
 
-# Any OpenAI-compatible API
+# Any OpenAI-compatible API (Groq, Together, vLLM, etc)
 INFERENCE_TYPE=openai_compatible \
 INFERENCE_URL=https://your-api.com \
 INFERENCE_API_KEY=your_key \
@@ -131,7 +131,7 @@ python3 agent_server.py
 - [x] Constitutional governance
 - [x] DAAI token + rewards
 - [x] Telegram bot with smart routing
-- [x] Multi-provider inference (Ollama/OpenAI/Groq/Anthropic)
+- [x] Multi-provider inference (local and cloud providers)
 - [x] Conversation history
 - [x] Faucet
 - [x] Slashing for bad agents
