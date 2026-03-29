@@ -56,15 +56,39 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 		return
 	}
 
-	// Distribute proportionally
+	// Distribute with hybrid formula: 30% base (reputation) + 70% work (tasks)
 	rewardPoolInt := rewardPool.TruncateInt()
 	distributed := sdk.ZeroInt()
 
+	// Precompute totalTasks across all eligible agents
+	tasksByValidator := make(map[string]int64)
+	totalTasks := int64(0)
 	for _, rep := range eligible {
-		// share = reputation / totalScore
-		share := rep.Value.Quo(totalScore)
-		agentReward := share.MulInt(rewardPoolInt).TruncateInt()
+		report, found := k.GetLatestReport(ctx, rep.Validator)
+		if found && report.TasksProcessed > 0 {
+			tasksByValidator[rep.Validator] = report.TasksProcessed
+			totalTasks += report.TasksProcessed
+		}
+	}
 
+	basePoolInt := sdk.NewDecFromInt(rewardPoolInt).Mul(sdk.NewDecWithPrec(30, 2)).TruncateInt()
+	workPoolInt := rewardPoolInt.Sub(basePoolInt)
+
+	for _, rep := range eligible {
+		// Base reward: proportional to reputation
+		baseShare := rep.Value.Quo(totalScore)
+		baseReward := baseShare.MulInt(basePoolInt).TruncateInt()
+
+		// Work reward: proportional to tasks completed
+		workReward := sdk.ZeroInt()
+		if totalTasks > 0 {
+			if tasks, ok := tasksByValidator[rep.Validator]; ok {
+				workShare := sdk.NewDec(tasks).Quo(sdk.NewDec(totalTasks))
+				workReward = workShare.MulInt(workPoolInt).TruncateInt()
+			}
+		}
+
+		agentReward := baseReward.Add(workReward)
 		if agentReward.IsZero() {
 			continue
 		}
@@ -74,7 +98,6 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 			continue
 		}
 
-		// Send from community pool to agent
 		reward := sdk.NewCoins(sdk.NewCoin("daai", agentReward))
 		err = k.distrKeeper.DistributeFromFeePool(ctx, reward, agentAddr)
 		if err != nil {
@@ -92,12 +115,16 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 			"agent_reward",
 			sdk.NewAttribute("agent", rep.Validator),
 			sdk.NewAttribute("amount", agentReward.String()),
+			sdk.NewAttribute("base_reward", baseReward.String()),
+			sdk.NewAttribute("work_reward", workReward.String()),
 			sdk.NewAttribute("reputation", rep.Value.String()),
 		))
 
 		k.Logger(ctx).Info("agent reward distributed",
 			"agent", rep.Validator,
 			"amount", agentReward,
+			"base_reward", baseReward,
+			"work_reward", workReward,
 			"reputation", rep.Value.String(),
 		)
 	}

@@ -18,8 +18,8 @@ type Params struct {
 func DefaultParams() Params {
 	return Params{
 		RewardInterval:         100,
-		RewardPercent:          sdk.NewDecWithPrec(1, 3),   // 0.001
-		MinReputationForReward: sdk.NewDecWithPrec(1, 2),   // 0.01
+		RewardPercent:          sdk.NewDecWithPrec(5, 3),   // 0.005
+		MinReputationForReward: sdk.NewDecWithPrec(1, 3),   // 0.001
 		SlashThreshold:         3,
 		SlashPercent:            sdk.NewDecWithPrec(10, 2), // 10%
 		SlashMaxStrikes:         3,
