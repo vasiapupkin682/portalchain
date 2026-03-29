@@ -17,6 +17,7 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 
@@ -58,6 +59,14 @@ var _ poitypes.BankKeeper = (*mockBankKeeper)(nil)
 
 func (m *mockBankKeeper) SpendableCoins(_ sdk.Context, _ sdk.AccAddress) sdk.Coins { return nil }
 
+func (m *mockBankKeeper) SendCoinsFromModuleToModule(_ sdk.Context, _ string, _ string, _ sdk.Coins) error {
+	return nil
+}
+
+func (m *mockBankKeeper) SendCoinsFromModuleToAccount(_ sdk.Context, _ string, _ sdk.AccAddress, _ sdk.Coins) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Test setup
 // ---------------------------------------------------------------------------
@@ -84,7 +93,7 @@ func setupPoiKeeper(t *testing.T) (*poikeeper.Keeper, sdk.Context, *mockAccountK
 		moduleAddrs: make(map[string]sdk.AccAddress),
 	}
 
-	k := poikeeper.NewKeeper(cdc, storeKey, modelRegistryStoreKey, accountK, &mockStakingKeeper{}, &mockBankKeeper{})
+	k := poikeeper.NewKeeper(cdc, storeKey, modelRegistryStoreKey, accountK, &mockStakingKeeper{}, &mockBankKeeper{}, distrkeeper.Keeper{})
 
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
 		ChainID: testChainID,

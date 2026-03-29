@@ -118,5 +118,6 @@ func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
 func (am AppModule) EndBlock(ctx sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
 	am.keeper.ExpirePendingSamplings(ctx)
 	am.keeper.DistributeRewards(ctx)
+	am.keeper.ApplyReputationDecay(ctx)
 	return []abci.ValidatorUpdate{}
 }
