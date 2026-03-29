@@ -36,3 +36,4 @@ __pycache__/
 faucet_history.json
 agent_alice_epoch.json
 agent_bob_epoch.json
+portalchaind-linux-amd64
