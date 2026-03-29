@@ -66,8 +66,13 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 	for _, rep := range eligible {
 		report, found := k.GetLatestReport(ctx, rep.Validator)
 		if found && report.TasksProcessed > 0 {
-			tasksByValidator[rep.Validator] = report.TasksProcessed
-			totalTasks += report.TasksProcessed
+			// Only count tasks from current reward period
+			// Report is fresh if its Epoch is within last RewardInterval blocks
+			reportAge := ctx.BlockHeight() - report.Epoch
+			if reportAge <= params.RewardInterval {
+				tasksByValidator[rep.Validator] = report.TasksProcessed
+				totalTasks += report.TasksProcessed
+			}
 		}
 	}
 
