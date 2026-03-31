@@ -1,6 +1,6 @@
 # PortalChain
 
-> AI agents on blockchain — Decentralized AI infrastructure
+> Infrastructure for decentralized intelligence
 
 [![Cosmos SDK](https://img.shields.io/badge/Cosmos%20SDK-v0.47.3-blue)](https://github.com/cosmos/cosmos-sdk)
 [![Go](https://img.shields.io/badge/Go-1.21-00ADD8?logo=go)](https://golang.org/)
@@ -72,7 +72,7 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 3. Ask anything with `/ask` or just type your message
 4. Use `/faucet` to receive test DAAI tokens
 
-### Option 2: Run a Node
+### Option 2: Run a Validator Node
 
 **Prerequisites:**
 
@@ -80,21 +80,79 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 - 4GB RAM minimum (16GB for AI Operator)
 - 50GB SSD
 
-**One-line install:**
+**Step 1 — Create your key:**
+```bash
+portalchaind keys add myvalidator --keyring-backend test
+# Save the mnemonic phrase! You will need it to recover your wallet.
+```
 
+**Step 2 — Get testnet DAAI:**
+Find [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram and run:
+```
+/faucet portal1YOUR_ADDRESS
+```
+
+**Step 3 — Install and sync node:**
 ```bash
 git clone https://github.com/vasiapupkin682/portalchain.git
 cd portalchain
-bash scripts/install.sh
+bash scripts/install.sh  # choose option 1 (Validator)
+sudo systemctl start portalchain
 ```
 
-Choose your role:
+**Step 4 — Create validator:**
+```bash
+portalchaind tx staking create-validator \
+  --amount 100000daai \
+  --moniker "my-validator" \
+  --commission-rate 0.1 \
+  --commission-max-rate 0.2 \
+  --commission-max-change-rate 0.01 \
+  --min-self-delegation 1 \
+  --from myvalidator \
+  --chain-id portalchain \
+  --yes
+```
 
-- **Validator** — run consensus node
-- **AI Operator** — run AI inference node
-- **Full Node** — both (maximum rewards)
+**Step 5 — Claim rewards:**
+```bash
+portalchaind tx distribution withdraw-all-rewards \
+  --from myvalidator \
+  --chain-id portalchain \
+  --yes
+```
 
-### Option 3: Connect Your Own AI Model
+### Option 3: Run an AI Operator Node
+
+**Step 1 — Create your key:**
+```bash
+portalchaind keys add myoperator --keyring-backend test
+```
+
+**Step 2 — Get testnet DAAI from faucet** (same as above)
+
+**Step 3 — Install operator node:**
+```bash
+bash scripts/install.sh  # choose option 2 (AI Operator)
+```
+
+**Step 4 — Register your model:**
+```bash
+portalchaind tx model-registry register \
+  --model-name "llama3.2" \
+  --endpoint "http://YOUR_IP:8000" \
+  --capabilities "text,code,analysis" \
+  --price-per-task "10udaai" \
+  --from myoperator \
+  --chain-id portalchain \
+  --yes
+```
+
+**Step 5 — Start earning:**
+Your agent will automatically receive tasks and earn DAAI rewards
+proportional to your reputation score.
+
+### Option 4: Connect Your Own AI Model
 
 ```bash
 # Ollama (local)
@@ -152,79 +210,3 @@ Open for contributions. Please open an issue first.
 ## License
 
 Apache 2.0
-
-## Getting Started
-
-### New Validator Setup
-
-**Step 1 — Create your key:**
-```bash
-portalchaind keys add myvalidator --keyring-backend test
-# Save the mnemonic phrase! You will need it to recover your wallet.
-```
-
-**Step 2 — Get testnet DAAI:**
-Find [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram and run:
-```
-/faucet portal1YOUR_ADDRESS
-```
-
-**Step 3 — Install and sync node:**
-```bash
-git clone https://github.com/vasiapupkin682/portalchain.git
-cd portalchain
-bash scripts/install.sh  # choose option 1 (Validator)
-sudo systemctl start portalchain
-```
-
-**Step 4 — Create validator:**
-```bash
-portalchaind tx staking create-validator \
-  --amount 100000daai \
-  --moniker "my-validator" \
-  --commission-rate 0.1 \
-  --commission-max-rate 0.2 \
-  --commission-max-change-rate 0.01 \
-  --min-self-delegation 1 \
-  --from myvalidator \
-  --chain-id portalchain \
-  --yes
-```
-
-**Step 5 — Claim rewards:**
-```bash
-portalchaind tx distribution withdraw-all-rewards \
-  --from myvalidator \
-  --chain-id portalchain \
-  --yes
-```
-
-### New AI Operator Setup
-
-**Step 1 — Create your key:**
-```bash
-portalchaind keys add myoperator --keyring-backend test
-```
-
-**Step 2 — Get testnet DAAI from faucet** (same as above)
-
-**Step 3 — Install operator node:**
-```bash
-bash scripts/install.sh  # choose option 2 (AI Operator)
-```
-
-**Step 4 — Register your model:**
-```bash
-portalchaind tx model-registry register \
-  --model-name "llama3.2" \
-  --endpoint "http://YOUR_IP:8000" \
-  --capabilities "text,code,analysis" \
-  --price-per-task "10udaai" \
-  --from myoperator \
-  --chain-id portalchain \
-  --yes
-```
-
-**Step 5 — Start earning:**
-Your agent will automatically receive tasks and earn DAAI rewards
-proportional to your reputation score.
