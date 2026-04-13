@@ -26,7 +26,11 @@ echo "portalchaind version: $(portalchaind version)"
 echo "[3/5] Initializing node..."
 if [ ! -f ~/.portalchain/config/genesis.json ]; then
     portalchaind init "$MONIKER" --chain-id $CHAIN_ID
-    echo "⚠️  Download genesis.json when testnet launches"
+    BOOTSTRAP_PEER="f86e9b6a2c0a91fb7b2199c0debf46ffa05d36ec@72.56.114.142:26656"
+    sed -i "s/persistent_peers = \"\"/persistent_peers = \"$BOOTSTRAP_PEER\"/" ~/.portalchain/config/config.toml
+    echo "Downloading genesis.json from bootstrap node..."
+    curl -s http://72.56.114.142:26657/genesis | jq '.result.genesis' > ~/.portalchain/config/genesis.json
+    echo "✅ Genesis downloaded"
 fi
 
 # 4. Configure seeds
