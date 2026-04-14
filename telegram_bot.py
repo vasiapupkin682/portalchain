@@ -371,7 +371,7 @@ async def faucet(update: Update, context):
                 "tx",
                 "bank",
                 "send",
-                "alice",  # faucet account
+                "validator",  # faucet account
                 address,
                 FAUCET_AMOUNT,
                 "--chain-id",
