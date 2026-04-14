@@ -25,7 +25,7 @@ MAX_HISTORY = 20
 conversation_history: dict[int, list[dict[str, str]]] = {}
 
 FAUCET_FILE = "faucet_history.json"
-FAUCET_AMOUNT = "1000daai"
+FAUCET_AMOUNT = "1000000000udaai"
 FAUCET_COOLDOWN_HOURS = 24
 
 
