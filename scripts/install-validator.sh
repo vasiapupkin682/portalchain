@@ -26,7 +26,7 @@ echo "portalchaind version: $(portalchaind version)"
 echo "[3/5] Initializing node..."
 if [ ! -f ~/.portalchain/config/genesis.json ]; then
     portalchaind init "$MONIKER" --chain-id $CHAIN_ID
-    BOOTSTRAP_PEER="f86e9b6a2c0a91fb7b2199c0debf46ffa05d36ec@72.56.114.142:26656"
+    BOOTSTRAP_PEER="fab93ae9dce6f9413ab64eee95f5c65272c789b0@72.56.114.142:26656"
     sed -i "s/persistent_peers = \"\"/persistent_peers = \"$BOOTSTRAP_PEER\"/" ~/.portalchain/config/config.toml
     echo "Downloading genesis.json from bootstrap node..."
     curl -s http://72.56.114.142:26657/genesis | jq '.result.genesis' > ~/.portalchain/config/genesis.json
