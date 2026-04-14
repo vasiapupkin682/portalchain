@@ -12,6 +12,6 @@ type Params struct {
 // DefaultParams returns default model registry parameters (100portal for testnet).
 func DefaultParams() Params {
 	return Params{
-		MinStake: sdk.NewCoin("daai", sdk.NewInt(100)),
+		MinStake: sdk.NewCoin("udaai", sdk.NewInt(100000000)),
 	}
 }
