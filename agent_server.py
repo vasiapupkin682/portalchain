@@ -420,6 +420,7 @@ class PortalChainAgent:
             "--chain-id", self.chain_id,
             "--yes",
             "--output", "json",
+            "--keyring-backend", "test",
             "--broadcast-mode", "sync",
         ]
 
