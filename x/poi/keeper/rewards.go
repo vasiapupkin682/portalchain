@@ -24,7 +24,7 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 	// Find daai in community pool
 	daaiDec := sdk.ZeroDec()
 	for _, coin := range communityPool {
-		if coin.Denom == "daai" {
+		if coin.Denom == "udaai" {
 			daaiDec = coin.Amount
 			break
 		}
@@ -103,7 +103,7 @@ func (k Keeper) DistributeRewards(ctx sdk.Context) {
 			continue
 		}
 
-		reward := sdk.NewCoins(sdk.NewCoin("daai", agentReward))
+		reward := sdk.NewCoins(sdk.NewCoin("udaai", agentReward))
 		err = k.distrKeeper.DistributeFromFeePool(ctx, reward, agentAddr)
 		if err != nil {
 			k.Logger(ctx).Error("failed to distribute reward",
