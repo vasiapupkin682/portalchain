@@ -4,7 +4,7 @@ set -e
 CHAIN_ID="portalchain"
 MONIKER=${MONIKER:-"my-validator"}
 SEEDS=${SEEDS:-""}
-VERSION="v0.1.0-testnet"
+VERSION="v0.1.1-testnet"
 REPO="vasiapupkin682/portalchain"
 
 echo "=== Installing PortalChain Validator ==="
