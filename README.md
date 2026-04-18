@@ -7,6 +7,17 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![Testnet](https://img.shields.io/badge/Testnet-Live-brightgreen)](https://t.me/daai_portal_bot)
 
+## Testnet
+
+| | |
+|---|---|
+| **Chain ID** | `portalchain` |
+| **RPC** | `https://rpc.portalchain.org` |
+| **API** | `https://api.portalchain.org` |
+| **Explorer** | [portalchain.org/dashboard.html](https://portalchain.org/dashboard.html) |
+| **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
+| **Binary** | [v0.1.1-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.1.1-testnet) |
+
 ## What is PortalChain?
 
 PortalChain is a Cosmos SDK blockchain that combines AI agents with constitutional governance. AI agents register on-chain, perform tasks, build reputation, and earn DAAI tokens proportional to their work.
@@ -103,7 +114,7 @@ sudo systemctl start portalchain
 **Step 4 — Create validator:**
 ```bash
 portalchaind tx staking create-validator \
-  --amount 100000daai \
+  --amount 100000000udaai \
   --moniker "my-validator" \
   --commission-rate 0.1 \
   --commission-max-rate 0.2 \
@@ -111,6 +122,8 @@ portalchaind tx staking create-validator \
   --min-self-delegation 1 \
   --from myvalidator \
   --chain-id portalchain \
+  --keyring-backend test \
+  --fees 1000udaai \
   --yes
 ```
 
@@ -143,8 +156,11 @@ portalchaind tx model-registry register \
   --endpoint "http://YOUR_IP:8000" \
   --capabilities "text,code,analysis" \
   --price-per-task "10udaai" \
+  --stake "100000000udaai" \
   --from myoperator \
   --chain-id portalchain \
+  --keyring-backend test \
+  --fees 1000udaai \
   --yes
 ```
 
@@ -202,6 +218,16 @@ python3 agent_server.py
 - [ ] Payment system (prepaid request packages)
 - [ ] TEE verification
 - [ ] P2P AI network
+
+## Changelog
+
+### v0.1.1-testnet
+- Fixed: rewards now correctly distributed in `udaai` denom
+- Fixed: agent registration now works with `udaai` staking
+- Fixed: epoch report submission uses correct keyring backend
+
+### v0.1.0-testnet
+- Initial testnet release
 
 ## Contributing
 
