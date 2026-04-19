@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"portalchain/x/model-registry/types"
+	poitypes "portalchain/x/poi/types"
 )
 
 func (k *msgServer) RegisterModel(goCtx context.Context, msg *types.MsgRegisterModel) (*types.MsgRegisterModelResponse, error) {
@@ -43,14 +44,20 @@ func (k *msgServer) RegisterModel(goCtx context.Context, msg *types.MsgRegisterM
 		Active:        true,
 		RegisteredAt:  ctx.BlockHeight(),
 		UpdatedAt:     ctx.BlockHeight(),
-		RepText:       "0.0",
-		RepCode:       "0.0",
-		RepAnalysis:   "0.0",
-		RepGeneral:    "0.0",
+		RepText:       "0.001",
+		RepCode:       "0.001",
+		RepAnalysis:   "0.001",
+		RepGeneral:    "0.001",
 		StakedAmount:  minStake.String(),
 	}
 
 	k.SetModelRecord(ctx, record)
+	// Set initial reputation in poi store so decay works correctly
+	initialRep := poitypes.Reputation{
+		Validator: msg.Operator,
+		Value:     sdk.NewDecWithPrec(1, 3), // 0.001
+	}
+	k.poiKeeper.SetReputation(ctx, initialRep)
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

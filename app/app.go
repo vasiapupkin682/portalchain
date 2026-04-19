@@ -569,6 +569,7 @@ func New(
 		keys[modelregistrytypes.StoreKey],
 		app.BankKeeper,
 		app.AccountKeeper,
+		&app.PoiKeeper,
 	)
 	modelregistryModule := modelregistrymodule.NewAppModule(appCodec, app.ModelRegistryKeeper)
 

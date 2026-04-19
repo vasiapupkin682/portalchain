@@ -12,13 +12,19 @@ import (
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
 	"portalchain/x/model-registry/types"
+	poitypes "portalchain/x/poi/types"
 )
+
+type PoiKeeper interface {
+	SetReputation(ctx sdk.Context, rep poitypes.Reputation)
+}
 
 type Keeper struct {
 	cdc      codec.BinaryCodec
 	storeKey storetypes.StoreKey
 	bank     bankkeeper.Keeper
 	account  authkeeper.AccountKeeper
+	poiKeeper PoiKeeper
 }
 
 func NewKeeper(
@@ -26,12 +32,14 @@ func NewKeeper(
 	storeKey storetypes.StoreKey,
 	bank bankkeeper.Keeper,
 	account authkeeper.AccountKeeper,
+	poiKeeper PoiKeeper,
 ) *Keeper {
 	return &Keeper{
 		cdc:      cdc,
 		storeKey: storeKey,
 		bank:     bank,
 		account:  account,
+		poiKeeper: poiKeeper,
 	}
 }
 
