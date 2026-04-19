@@ -10,13 +10,13 @@ import (
 
 const (
 	// Blocks without tasks before decay starts (~35 days at 6s/block)
-	DecayStartBlocks = int64(50000)
+	DecayStartBlocks = int64(5000)
 	// Decay applied every N blocks of inactivity
-	DecayInterval = int64(10000)
+	DecayInterval = int64(1000)
 	// Minimum reputation before deregister
 	MinReputationThreshold = "0.0001"
 	// Grace period after registration before decay applies (~70 days)
-	NewAgentGracePeriod = int64(100000)
+	NewAgentGracePeriod = int64(1000)
 	// Assumed block time for Timestamp → block conversions (seconds)
 	decayBlockTimeSeconds = int64(6)
 )
