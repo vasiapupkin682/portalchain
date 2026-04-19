@@ -109,6 +109,14 @@ def get_rep_for_category(model: dict, category: str) -> float:
         return 0.0
 
 
+def is_agent_alive(endpoint: str) -> bool:
+    try:
+        response = requests.get(f"{endpoint}/status", timeout=3)
+        return response.status_code == 200
+    except Exception:
+        return False
+
+
 def select_agent(models: list, task_type: str) -> str:
     """
     Weighted random selection based on category reputation.
@@ -135,6 +143,14 @@ def select_agent(models: list, task_type: str) -> str:
     eligible = [(m, r) for m, r in reps if r >= threshold]
     if not eligible:
         eligible = reps  # cold start: use all
+
+    # Health check — remove offline agents
+    eligible = [(m, r) for m, r in eligible if is_agent_alive(m.get("endpoint", ""))]
+    if not eligible:
+        # All agents offline, try all models as fallback
+        eligible = [(m, r) for m, r in reps if is_agent_alive(m.get("endpoint", ""))]
+    if not eligible:
+        return AGENT_URL  # complete fallback
 
     # Weighted random with base weight
     base_weight = 0.1
