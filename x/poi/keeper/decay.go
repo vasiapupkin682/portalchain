@@ -106,7 +106,7 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		}
 
 		// Apply decay only every DecayInterval blocks
-		if blocksSinceTask%DecayInterval != 0 {
+		if (blocksSinceTask-DecayStartBlocks)%DecayInterval != 0 {
 			continue
 		}
 
