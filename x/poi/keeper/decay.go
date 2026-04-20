@@ -60,6 +60,7 @@ func (k Keeper) GetAllAgents(ctx sdk.Context) []Agent {
 			LastTaskBlock: lastBlk,
 		})
 	}
+	k.Logger(ctx).Info("decay: agents found", "count", len(agents))
 	return agents
 }
 
