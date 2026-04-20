@@ -83,12 +83,19 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 	for _, agent := range agents {
 		// Grace period — don't touch newly registered agents
 		blocksSinceRegister := ctx.BlockHeight() - agent.RegisteredAt
+		blocksSinceTask := ctx.BlockHeight() - agent.LastTaskBlock
+		k.Logger(ctx).Info("decay: checking agent",
+			"agent", agent.Address,
+			"blocks_since_register", blocksSinceRegister,
+			"blocks_since_task", blocksSinceTask,
+			"grace_period", NewAgentGracePeriod,
+			"decay_start", DecayStartBlocks,
+		)
 		if blocksSinceRegister < NewAgentGracePeriod {
 			continue
 		}
 
 		// Check last task block
-		blocksSinceTask := ctx.BlockHeight() - agent.LastTaskBlock
 		if blocksSinceTask < DecayStartBlocks {
 			continue // agent is active
 		}
