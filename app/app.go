@@ -126,6 +126,9 @@ import (
 	modelregistrymodule "portalchain/x/model-registry"
 	modelregistrykeeper "portalchain/x/model-registry/keeper"
 	modelregistrytypes "portalchain/x/model-registry/types"
+	tasksmodule "portalchain/x/tasks"
+	taskskeeper "portalchain/x/tasks/keeper"
+	taskstypes "portalchain/x/tasks/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	appparams "portalchain/app/params"
@@ -190,6 +193,7 @@ var (
 		poimodule.AppModuleBasic{},
 		constitutionmodule.NewAppModuleBasic(nil),
 		modelregistrymodule.AppModuleBasic{},
+		tasksmodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -270,6 +274,7 @@ type App struct {
 	PoiKeeper            poimodulekeeper.Keeper
 	ConstitutionKeeper   constitutionkeeper.Keeper
 	ModelRegistryKeeper  *modelregistrykeeper.Keeper
+	TasksKeeper          taskskeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// mm is the module manager
@@ -320,6 +325,7 @@ func New(
 		poimoduletypes.StoreKey,
 		constitutiontypes.StoreKey,
 		modelregistrytypes.StoreKey,
+		taskstypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -573,6 +579,14 @@ func New(
 	)
 	modelregistryModule := modelregistrymodule.NewAppModule(appCodec, app.ModelRegistryKeeper)
 
+	app.TasksKeeper = *taskskeeper.NewKeeper(
+		appCodec,
+		keys[taskstypes.StoreKey],
+		app.BankKeeper,
+		app.ModelRegistryKeeper,
+	)
+	tasksModule := tasksmodule.NewAppModule(appCodec, &app.TasksKeeper)
+
 	// Set gov hooks AFTER constitution keeper is created so it can register its hooks.
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(
@@ -645,6 +659,7 @@ func New(
 		poiModule,
 		constitutionModule,
 		modelregistryModule,
+		tasksModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 
 		crisis.NewAppModule(app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)), // always be last to make sure that it checks for all invariants and not only part of them
@@ -681,6 +696,7 @@ func New(
 		poimoduletypes.ModuleName,
 		constitutiontypes.ModuleName,
 		modelregistrytypes.ModuleName,
+		taskstypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/beginBlockers
 	)
 
@@ -710,6 +726,7 @@ func New(
 		portalchainmoduletypes.ModuleName,
 		poimoduletypes.ModuleName,
 		modelregistrytypes.ModuleName,
+		taskstypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/endBlockers
 	)
 
@@ -744,6 +761,7 @@ func New(
 		poimoduletypes.ModuleName,
 		constitutiontypes.ModuleName,
 		modelregistrytypes.ModuleName,
+		taskstypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	}
 	app.mm.SetOrderInitGenesis(genesisModuleOrder...)
