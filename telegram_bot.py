@@ -429,6 +429,8 @@ async def payask(update: Update, context):
             )
             await update.message.reply_text(reply)
 
+            loop = asyncio.get_event_loop()
+
             def finalize_onchain():
                 try:
                     time.sleep(8)
@@ -438,7 +440,6 @@ async def payask(update: Update, context):
                         text = f"✅ On-chain confirmed\n🧾 Task ID: {task_id}\n🔗 TX: {txhash}"
                     else:
                         text = f"⏳ On-chain still pending\n🔗 TX: {txhash}"
-                    loop = asyncio.get_event_loop()
                     asyncio.run_coroutine_threadsafe(
                         context.bot.send_message(chat_id=chat_id, text=text),
                         loop,
