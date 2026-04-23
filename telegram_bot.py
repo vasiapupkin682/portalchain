@@ -417,9 +417,6 @@ async def payask(update: Update, context):
             result = data["result"]
             latency_ms = data["latency_ms"]
 
-            # Submit result on-chain
-            submit_result_onchain(task_id, result)
-
             append_to_history(chat_id, "user", question)
             append_to_history(chat_id, "assistant", result)
 
@@ -441,9 +438,10 @@ async def payask(update: Update, context):
                         text = f"✅ On-chain confirmed\n🧾 Task ID: {task_id}\n🔗 TX: {txhash}"
                     else:
                         text = f"⏳ On-chain still pending\n🔗 TX: {txhash}"
+                    loop = asyncio.get_event_loop()
                     asyncio.run_coroutine_threadsafe(
                         context.bot.send_message(chat_id=chat_id, text=text),
-                        context.application.loop,
+                        loop,
                     )
                 except Exception as e:
                     logger.error(f"Background on-chain finalize failed: {e}")
