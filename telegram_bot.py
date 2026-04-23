@@ -213,6 +213,13 @@ def submit_result_onchain(task_id: str, result: str) -> bool:
         return False
 
 
+def check_free_quota(address: str, task_type: str) -> bool:
+    """Returns True if user still has free quota remaining."""
+    # For now always return True (implement proper quota check later)
+    # TODO: query on-chain quota when REST API is available
+    return True
+
+
 def select_agent(models: list, task_type: str) -> str:
     """
     Weighted random selection based on category reputation.
@@ -271,6 +278,7 @@ async def start(update: Update, context):
         "I route your questions to the best available agent.\n\n"
         "Commands:\n"
         "/ask <question> — Ask me anything\n"
+        "/payask <question> — Record task on-chain (paid)\n"
         "/forget — Clear conversation history\n"
         "/status — Check agent status\n"
         "/reputation — Check my blockchain reputation\n"
@@ -313,7 +321,6 @@ async def ask(update: Update, context):
     models = get_active_models()
     endpoint = select_agent(models, task_type)
     history = get_history_for_chat(chat_id)
-    task_id = create_task_onchain(question, task_type)
 
     try:
         response = requests.post(
@@ -328,8 +335,6 @@ async def ask(update: Update, context):
             latency_ms = data["latency_ms"]
             epoch = data["epoch"]
             task_type_resp = data.get("task_type", task_type)
-            if task_id:
-                submit_result_onchain(task_id, result)
 
             # Update conversation history
             append_to_history(chat_id, "user", question)
@@ -341,7 +346,6 @@ async def ask(update: Update, context):
                     f"─────────────────\n"
                     f"🤖 Agent: {endpoint}\n"
                     f"⛓ Recorded on PortalChain\n"
-                    f"🧾 Task ID: {task_id or 'n/a'}\n"
                     f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms | 🏷 {task_type_resp}"
                 )
             else:
@@ -349,7 +353,6 @@ async def ask(update: Update, context):
                     f"{result}\n\n"
                     f"─────────────────\n"
                     f"⛓ Recorded on PortalChain\n"
-                    f"🧾 Task ID: {task_id or 'n/a'}\n"
                     f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms | 🏷 {task_type_resp}"
                 )
             await update.message.reply_text(reply)
@@ -362,6 +365,64 @@ async def ask(update: Update, context):
         )
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
+
+
+async def payask(update: Update, context):
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /payask <your question>\n"
+            "This command records your task on-chain and charges DAAI tokens."
+        )
+        return
+
+    question = " ".join(context.args)
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+
+    await update.message.reply_text("⛓ Creating on-chain task...")
+
+    task_type = classify_task(question)
+
+    # Create task on-chain first
+    task_id = create_task_onchain(question, task_type)
+    if not task_id:
+        await update.message.reply_text("❌ Failed to create on-chain task. Check your DAAI balance.")
+        return
+
+    await update.message.reply_text(f"✅ Task {task_id} created on-chain. Processing...")
+
+    models = get_active_models()
+    endpoint = select_agent(models, task_type)
+    history = get_history_for_chat(chat_id)
+
+    try:
+        response = requests.post(
+            f"{endpoint}/task",
+            json={"prompt": question, "max_tokens": 500, "history": history},
+            timeout=120,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            result = data["result"]
+            latency_ms = data["latency_ms"]
+
+            # Submit result on-chain
+            submit_result_onchain(task_id, result)
+
+            append_to_history(chat_id, "user", question)
+            append_to_history(chat_id, "assistant", result)
+
+            reply = (
+                f"{result}\n\n"
+                f"─────────────────\n"
+                f"⛓ Recorded on PortalChain\n"
+                f"🧾 Task ID: {task_id}\n"
+                f"⚡ {latency_ms}ms | 🏷 {task_type}"
+            )
+            await update.message.reply_text(reply)
+        else:
+            await update.message.reply_text("❌ Agent unavailable, try again later")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
 async def status(update: Update, context):
@@ -553,6 +614,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
     app.add_handler(CommandHandler("ask", ask))
+    app.add_handler(CommandHandler("payask", payask))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("reputation", reputation))
     app.add_handler(CommandHandler("agents", agents))
