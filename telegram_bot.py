@@ -149,7 +149,7 @@ def create_task_onchain(query: str, task_type: str) -> str | None:
                 "--output",
                 "json",
                 "--broadcast-mode",
-                "sync",
+                "block",
             ],
             capture_output=True,
             text=True,
