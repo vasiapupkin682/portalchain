@@ -149,7 +149,7 @@ def create_task_onchain(query: str, task_type: str) -> str | None:
                 "--output",
                 "json",
                 "--broadcast-mode",
-                "block",
+                "sync",
             ],
             capture_output=True,
             text=True,
@@ -157,15 +157,30 @@ def create_task_onchain(query: str, task_type: str) -> str | None:
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            # Extract task_id from events
-            for event in data.get("events", []):
-                if event.get("type") == "task_created":
-                    for attr in event.get("attributes", []):
-                        if attr.get("key") == "task_id":
-                            return attr.get("value")
-            # fallback: some chains return logs with events
-            for log in data.get("logs", []):
-                for event in log.get("events", []):
+            txhash = data.get("txhash")
+            if not txhash:
+                return None
+
+            # Wait for tx to be included in block and query it
+            time.sleep(8)  # wait for next block
+
+            query_result = subprocess.run(
+                ["portalchaind", "query", "tx", txhash, "--output", "json"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if query_result.returncode == 0:
+                tx_data = json.loads(query_result.stdout)
+                for log in tx_data.get("logs", []):
+                    for event in log.get("events", []):
+                        if event.get("type") == "task_created":
+                            for attr in event.get("attributes", []):
+                                if attr.get("key") == "task_id":
+                                    return attr.get("value")
+                # Also check top-level events
+                for event in tx_data.get("events", []):
                     if event.get("type") == "task_created":
                         for attr in event.get("attributes", []):
                             if attr.get("key") == "task_id":
