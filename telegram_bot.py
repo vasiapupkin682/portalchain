@@ -6,6 +6,8 @@ or falls back to AGENT_URL when no agents are registered.
 """
 
 import json
+import hashlib
+import logging
 import os
 import random
 import subprocess
@@ -20,6 +22,10 @@ AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8000")  # fallback
 CHAIN_RPC = os.getenv("CHAIN_RPC", "http://localhost:26657")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 MAX_HISTORY = 20
+CHAIN_ID = os.getenv("CHAIN_ID", "portalchain")
+FAUCET_KEY = os.getenv("FAUCET_KEY", "validator")
+
+logger = logging.getLogger(__name__)
 
 # conversation_history: chat_id -> list of {"role": "user"|"assistant", "content": str}
 conversation_history: dict[int, list[dict[str, str]]] = {}
@@ -114,6 +120,96 @@ def is_agent_alive(endpoint: str) -> bool:
         response = requests.get(f"{endpoint}/status", timeout=3)
         return response.status_code == 200
     except Exception:
+        return False
+
+
+def create_task_onchain(query: str, task_type: str) -> str | None:
+    """Creates task on-chain. Returns task_id or None if failed."""
+    try:
+        query_hash = hashlib.sha256(query.encode()).hexdigest()
+        result = subprocess.run(
+            [
+                "portalchaind",
+                "tx",
+                "tasks",
+                "create-task",
+                "--query",
+                query,
+                "--task-type",
+                task_type,
+                "--from",
+                FAUCET_KEY,
+                "--chain-id",
+                CHAIN_ID,
+                "--keyring-backend",
+                "test",
+                "--fees",
+                "1000udaai",
+                "--yes",
+                "--output",
+                "json",
+                "--broadcast-mode",
+                "sync",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            # Extract task_id from events
+            for event in data.get("events", []):
+                if event.get("type") == "task_created":
+                    for attr in event.get("attributes", []):
+                        if attr.get("key") == "task_id":
+                            return attr.get("value")
+            # fallback: some chains return logs with events
+            for log in data.get("logs", []):
+                for event in log.get("events", []):
+                    if event.get("type") == "task_created":
+                        for attr in event.get("attributes", []):
+                            if attr.get("key") == "task_id":
+                                return attr.get("value")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to create task on-chain: {e}")
+        return None
+
+
+def submit_result_onchain(task_id: str, result: str) -> bool:
+    """Submits task result on-chain."""
+    try:
+        subprocess.run(
+            [
+                "portalchaind",
+                "tx",
+                "tasks",
+                "submit-result",
+                "--task-id",
+                task_id,
+                "--result",
+                result,
+                "--from",
+                FAUCET_KEY,
+                "--chain-id",
+                CHAIN_ID,
+                "--keyring-backend",
+                "test",
+                "--fees",
+                "1000udaai",
+                "--yes",
+                "--output",
+                "json",
+                "--broadcast-mode",
+                "sync",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to submit result on-chain: {e}")
         return False
 
 
@@ -217,6 +313,7 @@ async def ask(update: Update, context):
     models = get_active_models()
     endpoint = select_agent(models, task_type)
     history = get_history_for_chat(chat_id)
+    task_id = create_task_onchain(question, task_type)
 
     try:
         response = requests.post(
@@ -231,6 +328,8 @@ async def ask(update: Update, context):
             latency_ms = data["latency_ms"]
             epoch = data["epoch"]
             task_type_resp = data.get("task_type", task_type)
+            if task_id:
+                submit_result_onchain(task_id, result)
 
             # Update conversation history
             append_to_history(chat_id, "user", question)
@@ -242,6 +341,7 @@ async def ask(update: Update, context):
                     f"─────────────────\n"
                     f"🤖 Agent: {endpoint}\n"
                     f"⛓ Recorded on PortalChain\n"
+                    f"🧾 Task ID: {task_id or 'n/a'}\n"
                     f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms | 🏷 {task_type_resp}"
                 )
             else:
@@ -249,6 +349,7 @@ async def ask(update: Update, context):
                     f"{result}\n\n"
                     f"─────────────────\n"
                     f"⛓ Recorded on PortalChain\n"
+                    f"🧾 Task ID: {task_id or 'n/a'}\n"
                     f"📊 Epoch: {epoch} | ⚡ {latency_ms}ms | 🏷 {task_type_resp}"
                 )
             await update.message.reply_text(reply)
