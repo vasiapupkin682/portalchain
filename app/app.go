@@ -774,6 +774,14 @@ func New(
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
 
+	// Always upgrade tasks store if needed
+	storeUpgrades := storetypes.StoreUpgrades{
+		Added: []string{taskstypes.StoreKey},
+	}
+	app.SetStoreLoader(func(ms sdk.CommitMultiStore) error {
+		return ms.LoadLatestVersionAndUpgrade(&storeUpgrades)
+	})
+
 	autocliv1.RegisterQueryServer(app.GRPCQueryRouter(), runtimeservices.NewAutoCLIQueryService(app.mm.Modules))
 	reflectionSvc, err := runtimeservices.NewReflectionService()
 	if err != nil {
