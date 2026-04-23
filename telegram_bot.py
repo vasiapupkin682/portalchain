@@ -11,7 +11,9 @@ import logging
 import os
 import random
 import subprocess
+import threading
 import time
+import asyncio
 
 import requests
 from telegram import Update
@@ -124,7 +126,7 @@ def is_agent_alive(endpoint: str) -> bool:
 
 
 def create_task_onchain(query: str, task_type: str) -> str | None:
-    """Creates task on-chain. Returns task_id or None if failed."""
+    """Creates task on-chain. Returns txhash or None if failed."""
     try:
         query_hash = hashlib.sha256(query.encode()).hexdigest()
         result = subprocess.run(
@@ -158,36 +160,31 @@ def create_task_onchain(query: str, task_type: str) -> str | None:
         if result.returncode == 0:
             data = json.loads(result.stdout)
             txhash = data.get("txhash")
-            if not txhash:
-                return None
+            return txhash
+        return None
+    except Exception as e:
+        logger.error(f"Failed to create task on-chain: {e}")
+        return None
 
-            # Wait for tx to be included in block and query it
-            time.sleep(8)  # wait for next block
 
-            query_result = subprocess.run(
-                ["portalchaind", "query", "tx", txhash, "--output", "json"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if query_result.returncode == 0:
-                tx_data = json.loads(query_result.stdout)
-                for log in tx_data.get("logs", []):
-                    for event in log.get("events", []):
-                        if event.get("type") == "task_created":
-                            for attr in event.get("attributes", []):
-                                if attr.get("key") == "task_id":
-                                    return attr.get("value")
-                # Also check top-level events
-                for event in tx_data.get("events", []):
+def get_task_id_from_txhash(txhash: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["portalchaind", "query", "tx", txhash, "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            for log in data.get("logs", []):
+                for event in log.get("events", []):
                     if event.get("type") == "task_created":
                         for attr in event.get("attributes", []):
                             if attr.get("key") == "task_id":
                                 return attr.get("value")
         return None
-    except Exception as e:
-        logger.error(f"Failed to create task on-chain: {e}")
+    except Exception:
         return None
 
 
@@ -398,12 +395,12 @@ async def payask(update: Update, context):
     task_type = classify_task(question)
 
     # Create task on-chain first
-    task_id = create_task_onchain(question, task_type)
-    if not task_id:
+    txhash = create_task_onchain(question, task_type)
+    if not txhash:
         await update.message.reply_text("❌ Failed to create on-chain task. Check your DAAI balance.")
         return
 
-    await update.message.reply_text(f"✅ Task {task_id} created on-chain. Processing...")
+    await update.message.reply_text(f"✅ TX submitted: {txhash}\nProcessing with agent...")
 
     models = get_active_models()
     endpoint = select_agent(models, task_type)
@@ -430,10 +427,28 @@ async def payask(update: Update, context):
                 f"{result}\n\n"
                 f"─────────────────\n"
                 f"⛓ Recorded on PortalChain\n"
-                f"🧾 Task ID: {task_id}\n"
+                f"🔗 TX: {txhash} (pending)\n"
                 f"⚡ {latency_ms}ms | 🏷 {task_type}"
             )
             await update.message.reply_text(reply)
+
+            def finalize_onchain():
+                try:
+                    time.sleep(8)
+                    task_id = get_task_id_from_txhash(txhash)
+                    if task_id:
+                        submit_result_onchain(task_id, result)
+                        text = f"✅ On-chain confirmed\n🧾 Task ID: {task_id}\n🔗 TX: {txhash}"
+                    else:
+                        text = f"⏳ On-chain still pending\n🔗 TX: {txhash}"
+                    asyncio.run_coroutine_threadsafe(
+                        context.bot.send_message(chat_id=chat_id, text=text),
+                        context.application.loop,
+                    )
+                except Exception as e:
+                    logger.error(f"Background on-chain finalize failed: {e}")
+
+            threading.Thread(target=finalize_onchain, daemon=True).start()
         else:
             await update.message.reply_text("❌ Agent unavailable, try again later")
     except Exception as e:
