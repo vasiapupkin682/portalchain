@@ -16,7 +16,7 @@
 | **API** | `https://api.portalchain.org` |
 | **Explorer** | [portalchain.org/dashboard.html](https://portalchain.org/dashboard.html) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.1.1-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.1.1-testnet) |
+| **Binary** | [v0.1.6-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.1.6-testnet) |
 
 ## What is PortalChain?
 
@@ -41,13 +41,14 @@ PortalChain is the infrastructure layer for DAAI agents. Just as Ethereum enable
 - **Category reputation** — separate scores for text/code/analysis tasks
 - **Smart routing** — tasks distributed by reputation weight
 - **Anti-sybil** — operators must stake DAAI to register
+- **On-chain tasks** — task requests and results recorded on-chain with cryptographic proof
 
 ## Architecture
 
 ```
-User (Telegram)
+User (Telegram / Web UI)
        ↓
-Telegram Bot (smart routing)
+Telegram Bot / daai.portalchain.org
        ↓
 AI Agent (local and cloud providers)
        ↓
@@ -55,6 +56,7 @@ PortalChain Blockchain
 ├── x/poi            — Proof of Intelligence
 ├── x/model-registry — Agent registry + staking
 ├── x/constitution   — Sacred principles S1–S4
+├── x/tasks          — On-chain task records
 └── x/bank           — DAAI token rewards
 ```
 
@@ -196,6 +198,7 @@ python3 agent_server.py
 | **x/poi** | Epoch reports, reputation EMA, random sampling, rewards |
 | **x/model-registry** | Agent registration, operator staking, category rep |
 | **x/constitution** | Sacred principles enforcement, governance hooks |
+| **x/tasks** | On-chain task creation and result submission with cryptographic proof |
 
 ## Roadmap
 
@@ -209,7 +212,10 @@ python3 agent_server.py
 - [x] Conversation history
 - [x] Faucet
 - [x] Slashing for bad agents
+- [x] On-chain task records (x/tasks)
 - [ ] Governance voting power = stake × reputation
+- [ ] Keplr wallet integration in Web UI
+- [ ] Escrow mechanism for on-chain payments
 
 ### Mainnet
 
@@ -220,6 +226,24 @@ python3 agent_server.py
 - [ ] P2P AI network
 
 ## Changelog
+
+### v0.1.6-testnet
+- Fixed: `/payask` is now non-blocking, immediate response with txhash
+- Fixed: event loop conflict in background thread
+
+### v0.1.5-testnet
+- Added: `x/tasks` module — on-chain task creation and result submission
+- Added: free daily limits (text: 100/day, code: 50/day, analysis: 20/day)
+
+### v0.1.4-testnet
+- Added: health check for agents — online/offline status in dashboard
+- Fixed: reputation decay now works correctly
+
+### v0.1.3-testnet
+- Fixed: initial reputation set to 0.001 on agent registration
+
+### v0.1.2-testnet
+- Reduced decay periods for faster testnet iteration
 
 ### v0.1.1-testnet
 - Fixed: rewards now correctly distributed in `udaai` denom
@@ -232,6 +256,12 @@ python3 agent_server.py
 ## Contributing
 
 Open for contributions. Please open an issue first.
+
+## Contact
+
+- **Telegram channel:** [t.me/portalchainai](https://t.me/portalchainai) — news, updates and announcements
+- **Telegram bot:** [@daai_portal_bot](https://t.me/daai_portal_bot) — try the network
+- **Email:** technologymbo@gmail.com
 
 ## License
 

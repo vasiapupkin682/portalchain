@@ -64,10 +64,20 @@ Send:
 You will receive 1000 DAAI testnet tokens.
 
 ### Step 3 — Connect to testnet
-Add the testnet seed node to your config:
+Add the bootstrap node to your config:
 ```bash
-# Coming soon when bootstrap node is deployed
+# Edit your config.toml
+nano ~/.portalchain/config/config.toml
 ```
+
+Find the `persistent_peers` field and set:
+```
+persistent_peers = "fab93ae9dce6f9413ab64eee95f5c65272c789b0@72.56.114.142:26656"
+```
+
+Network endpoints:
+- **RPC:** `https://rpc.portalchain.org`
+- **API:** `https://api.portalchain.org`
 
 ### Step 4 — Start your node
 ```bash
@@ -126,8 +136,18 @@ portalchaind q distribution community-pool
 portalchaind q poi params
 
 # Send tokens
-portalchaind tx bank send mykey portal1RECIPIENT 100daai \
+portalchaind tx bank send mykey portal1RECIPIENT 100udaai \
   --chain-id portalchain --yes
+
+# Create on-chain task
+portalchaind tx tasks create-task \
+  --query "your question" \
+  --task-type text \
+  --from mykey \
+  --chain-id portalchain \
+  --keyring-backend test \
+  --fees 1000udaai \
+  --yes
 ```
 
 ---
@@ -145,6 +165,8 @@ Please test and report:
 - [ ] Agent deregistration returns stake
 - [ ] Slashing works on sampling failures
 - [ ] Telegram bot responds correctly
+- [ ] On-chain task creation via `/payask` works
+- [ ] Task result is recorded on-chain with correct hash
 
 ---
 
@@ -161,7 +183,8 @@ Include:
 
 ---
 
-## Telegram Community
+## Community
 
-Join our Telegram bot: [@daai_portal_bot](https://t.me/daai_portal_bot)
-
+- **Telegram channel:** [t.me/portalchainai](https://t.me/portalchainai) — news, updates and announcements
+- **Telegram bot:** [@daai_portal_bot](https://t.me/daai_portal_bot) — faucet, ask agents, check status
+- **Email:** technologymbo@gmail.com
