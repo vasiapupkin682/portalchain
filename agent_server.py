@@ -326,7 +326,7 @@ class PortalChainAgent:
         self.stats = {"completed": 0, "failed": 0, "total_latency": 0}
 
         result = subprocess.run(
-            ["portalchaind", "keys", "show", self.validator, "--address"],
+            ["portalchaind", "keys", "show", self.validator, "--address", "--keyring-backend", "test"],
             capture_output=True,
             text=True,
         )
@@ -585,6 +585,90 @@ def balance_endpoint():
 
 # ========== Startup ==========
 
+
+
+# ========== Blockchain Task Poller ==========
+
+import threading
+
+def poll_blockchain_tasks():
+    """Background thread: poll for assigned tasks and execute them."""
+    global agent, inference_provider
+    logger.info("Blockchain task poller started")
+    while True:
+        time.sleep(10)
+        try:
+            if agent is None or not agent.address:
+                continue
+            result = subprocess.run([
+                'portalchaind', 'query', 'tasks', 'agent-tasks', agent.address,
+            ], capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                continue
+            raw = result.stdout.strip()
+            if not raw or raw == 'null':
+                continue
+            tasks = json.loads(raw)
+            if not isinstance(tasks, list):
+                continue
+            for task in tasks:
+                task_id = task.get('id', '')
+                status = task.get('status', 0)
+                query_hash = task.get('query_hash', '')
+                task_type = task.get('task_type', 'text')
+                if status != 1:
+                    continue
+                logger.info("Found assigned task: %s type=%s", task_id, task_type)
+                start = time.perf_counter()
+                result_text, success = inference_provider.generate(
+                    prompt=f"Task {task_id}: {query_hash}",
+                    history=[],
+                    max_tokens=500,
+                )
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                if not success:
+                    logger.warning("Inference failed for task %s", task_id)
+                    continue
+                result_hash = hashlib.sha256(result_text.encode()).hexdigest()
+                result_url = f"local://{result_hash}"
+                submit = subprocess.run([
+                    'portalchaind', 'tx', 'tasks', 'submit-result',
+                    '--task-id', task_id,
+                    '--result', result_text[:500],
+                    '--from', agent.validator,
+                    '--keyring-backend', 'test',
+                    '--chain-id', 'portalchain',
+                    '--fees', '1000udaai',
+                    '--yes', '--output', 'json'
+                ], capture_output=True, text=True, timeout=30)
+                if submit.returncode == 0:
+                    try:
+                        tx_data = json.loads(submit.stdout)
+                        if tx_data.get('code', 1) == 0:
+                            logger.info("Submitted result for task %s txhash=%s", task_id, tx_data.get('txhash', ''))
+                            agent.task_buffer.append({
+                                'task_hash': query_hash,
+                                'result_hash': result_hash,
+                                'latency_ms': latency_ms,
+                                'success': True,
+                                'task_type': task_type,
+                            })
+                            if len(agent.task_buffer) >= agent.buffer_size:
+                                agent.submit_poi_report()
+                                agent.task_buffer.clear()
+                        else:
+                            logger.error("Submit failed for task %s: %s", task_id, tx_data.get('raw_log'))
+                    except Exception as e:
+                        logger.error("Error parsing submit result: %s", e)
+        except Exception as e:
+            logger.error("Blockchain poller error: %s", e)
+
+
+def start_poller():
+    t = threading.Thread(target=poll_blockchain_tasks, daemon=True)
+    t.start()
+    return t
+
 if __name__ == "__main__":
     import argparse
     import uvicorn
@@ -609,4 +693,5 @@ if __name__ == "__main__":
         "Starting agent server on port %d (buffer_size=%d, inference=%s, model=%s)",
         args.port, agent.buffer_size, INFERENCE_TYPE, INFERENCE_MODEL,
     )
+    start_poller()
     uvicorn.run(app, host="0.0.0.0", port=args.port)
