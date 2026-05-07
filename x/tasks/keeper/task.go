@@ -18,7 +18,7 @@ func (k Keeper) SetTask(ctx sdk.Context, task types.Task) {
     store.Set(taskKey(task.ID), bz)
 }
 
-func (k Keeper) GetTask(ctx sdk.Context, id string) (types.Task, bool) {
+func (k Keeper) getTaskByID(ctx sdk.Context, id string) (types.Task, bool) {
     store := ctx.KVStore(k.storeKey)
     bz := store.Get(taskKey(id))
     if bz == nil {

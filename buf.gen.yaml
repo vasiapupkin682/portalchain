@@ -1,0 +1,15 @@
+version: v1
+plugins:
+  - plugin: buf.build/community/davidscottcohen-gogo
+    out: .
+    opt:
+      - plugins=grpc
+      - Mgoogle/protobuf/any.proto=github.com/cosmos/gogoproto/types/any
+      - Mgoogle/api/annotations.proto=github.com/cosmos/gogoproto/googleapis/google/api
+      - Mcosmos/base/query/v1beta1/pagination.proto=github.com/cosmos/cosmos-sdk/types/query
+      - paths=source_relative
+  - plugin: buf.build/grpc-ecosystem/gateway
+    out: .
+    opt:
+      - paths=source_relative
+      - Mgoogle/api/annotations.proto=github.com/cosmos/gogoproto/googleapis/google/api

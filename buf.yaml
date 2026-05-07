@@ -1,0 +1,13 @@
+version: v1
+name: buf.build/portalchain/portalchain
+deps:
+  - buf.build/cosmos/cosmos-sdk
+  - buf.build/cosmos/cosmos-proto
+  - buf.build/googleapis/googleapis
+  - buf.build/gogoproto/protobuf
+breaking:
+  use:
+    - FILE
+lint:
+  use:
+    - DEFAULT

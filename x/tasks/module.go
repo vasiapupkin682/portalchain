@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"context"
 	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -54,7 +55,9 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 	return nil
 }
 
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx))
+}
 
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
 	return cli.GetTxCmd()
@@ -78,6 +81,7 @@ func NewAppModule(cdc codec.Codec, keeper *keeper.Keeper) AppModule {
 
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServer(am.keeper))
+	types.RegisterQueryServer(cfg.QueryServer(), *am.keeper)
 }
 
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}

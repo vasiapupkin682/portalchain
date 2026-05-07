@@ -1,0 +1,38 @@
+syntax = "proto3";
+package portalchain.tasks;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "portalchain/x/tasks/types";
+
+service Query {
+  rpc ListTasks(QueryListTasksRequest) returns (QueryListTasksResponse) {
+    option (google.api.http).get = "/portalchain/tasks/list";
+  }
+  rpc GetTask(QueryGetTaskRequest) returns (QueryGetTaskResponse) {
+    option (google.api.http).get = "/portalchain/tasks/{task_id}";
+  }
+  rpc AgentTasks(QueryAgentTasksRequest) returns (QueryAgentTasksResponse) {
+    option (google.api.http).get = "/portalchain/tasks/agent/{agent}";
+  }
+}
+
+message QueryListTasksRequest {}
+message QueryListTasksResponse {
+  string tasks_json = 1;
+}
+
+message QueryGetTaskRequest {
+  string task_id = 1;
+}
+message QueryGetTaskResponse {
+  string task_json = 1;
+}
+
+message QueryAgentTasksRequest {
+  string agent = 1;
+}
+message QueryAgentTasksResponse {
+  string tasks_json = 1;
+}

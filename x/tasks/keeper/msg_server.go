@@ -94,7 +94,7 @@ func (s *msgServer) CreateTask(goCtx context.Context, msg *types.MsgCreateTask) 
 func (s *msgServer) SubmitResult(goCtx context.Context, msg *types.MsgSubmitResult) (*types.MsgSubmitResultResponse, error) {
     ctx := sdk.UnwrapSDKContext(goCtx)
 
-    task, found := s.GetTask(ctx, msg.TaskId)
+    task, found := s.getTaskByID(ctx, msg.TaskId)
     if !found {
         return nil, types.ErrTaskNotFound
     }

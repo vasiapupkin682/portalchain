@@ -3,11 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-
+	"github.com/spf13/cobra"
 	"portalchain/x/tasks/types"
 )
 
@@ -19,65 +17,75 @@ func GetQueryCmd() *cobra.Command {
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
-
 	cmd.AddCommand(
-		CmdGetTask(),
 		CmdListTasks(),
-		CmdMyTasks(),
+		CmdGetTask(),
+		CmdAgentTasks(),
 	)
-
-	return cmd
-}
-
-func CmdGetTask() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get-task [task-id]",
-		Short: "Get task by ID (placeholder)",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
-			return clientCtx.PrintString("get-task query is not implemented yet; use portalchaind query tx <txhash> to see task details\n")
-		},
-	}
-
-	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
 func CmdListTasks() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-tasks",
-		Short: "List tasks (placeholder)",
+		Short: "List all tasks",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			return clientCtx.PrintString("list-tasks query is not implemented yet\n")
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.ListTasks(cmd.Context(), &types.QueryListTasksRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintString(res.TasksJson + "\n")
 		},
 	}
-
 	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
-func CmdMyTasks() *cobra.Command {
+func CmdGetTask() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "my-tasks [creator]",
-		Short: "List tasks by creator (placeholder)",
+		Use:   "get-task [task-id]",
+		Short: "Get task by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			return clientCtx.PrintString("my-tasks query is not implemented yet; use portalchaind query tx <txhash> to see task details\n")
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.GetTask(cmd.Context(), &types.QueryGetTaskRequest{TaskId: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintString(res.TaskJson + "\n")
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
 
+func CmdAgentTasks() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "agent-tasks [agent-address]",
+		Short: "List pending tasks assigned to agent",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.AgentTasks(cmd.Context(), &types.QueryAgentTasksRequest{Agent: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintString(res.TasksJson + "\n")
+		},
+	}
 	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
