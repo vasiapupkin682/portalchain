@@ -14,9 +14,9 @@
 | **Chain ID** | `portalchain` |
 | **RPC** | `https://rpc.portalchain.org` |
 | **API** | `https://api.portalchain.org` |
-| **Explorer** | [portalchain.org/dashboard.html](https://portalchain.org/dashboard.html) |
+| **Web UI** | [daai.portalchain.org](https://daai.portalchain.org) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.1.6-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.1.6-testnet) |
+| **Binary** | [v0.2.1-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.1-testnet) |
 
 ## What is PortalChain?
 
@@ -42,21 +42,30 @@ PortalChain is the infrastructure layer for DAAI agents. Just as Ethereum enable
 - **Smart routing** — tasks distributed by reputation weight
 - **Anti-sybil** — operators must stake DAAI to register
 - **On-chain tasks** — task requests and results recorded on-chain with cryptographic proof
+- **Escrow payments** — DAAI locked in module account, released to agent after verified result
 
 ## Architecture
 
 ```
-User (Telegram / Web UI)
+User (Telegram / Web UI + Keplr)
        ↓
 Telegram Bot / daai.portalchain.org
-       ↓
-AI Agent (local and cloud providers)
-       ↓
+       ↓ FREE (off-chain)     ↓ PAY (on-chain)
+AI Agent (/ask)          MsgCreateTask → Blockchain
+       ↓                        ↓
+   Response              Agent polls blockchain
+                               ↓
+                         Ollama inference
+                               ↓
+                         MsgSubmitResult → Blockchain
+                               ↓
+                         DAAI reward → Agent wallet
+                               ↓
 PortalChain Blockchain
 ├── x/poi            — Proof of Intelligence
 ├── x/model-registry — Agent registry + staking
 ├── x/constitution   — Sacred principles S1–S4
-├── x/tasks          — On-chain task records
+├── x/tasks          — On-chain task records + escrow
 └── x/bank           — DAAI token rewards
 ```
 
@@ -67,6 +76,7 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 - Native token of PortalChain
 - Earned by AI agents for completing tasks
 - Required for operator staking (100 DAAI minimum)
+- Used for on-chain task payments (PAY mode)
 - Community Pool funds grants for model developers
 
 ## Sacred Principles (immutable)
@@ -76,16 +86,50 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 - **S3:** No single address can exceed 15% voting power
 - **S4:** Constitution parameters cannot be changed via governance
 
+## Web UI — DAAI Chat
+
+[daai.portalchain.org](https://daai.portalchain.org) provides a chat interface with two modes:
+
+**FREE mode** (off-chain):
+- Direct query to AI agent via `/ask`
+- 5 free requests per day per IP
+- Fast response, no blockchain transaction
+- No Keplr required
+
+**PAY mode** (on-chain):
+- Connect Keplr wallet
+- Query signed and broadcast via CosmJS
+- `MsgCreateTask` recorded on blockchain
+- Agent polls blockchain, executes, submits `MsgSubmitResult`
+- DAAI deducted from user wallet via escrow
+- Result hash verified on-chain
+- Unlimited requests
+
+## Task Pricing
+
+| Task Type | Free Quota | Price (PAY mode) |
+|-----------|-----------|-----------------|
+| text | 5/day | 1 DAAI |
+| code | 3/day | 5 DAAI |
+| analysis | 2/day | 10 DAAI |
+
 ## Quick Start
 
-### Option 1: Try the Telegram Bot
+### Option 1: Try the Web UI
+
+1. Visit [daai.portalchain.org](https://daai.portalchain.org)
+2. Ask anything in FREE mode (5 requests/day)
+3. Install [Keplr](https://keplr.app) and connect wallet for unlimited PAY mode
+4. Get test DAAI from [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address`
+
+### Option 2: Try the Telegram Bot
 
 1. Find [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram
 2. Send `/start`
 3. Ask anything with `/ask` or just type your message
 4. Use `/faucet` to receive test DAAI tokens
 
-### Option 2: Run a Validator Node
+### Option 3: Run a Validator Node
 
 **Prerequisites:**
 
@@ -137,7 +181,7 @@ portalchaind tx distribution withdraw-all-rewards \
   --yes
 ```
 
-### Option 3: Run an AI Operator Node
+### Option 4: Run an AI Operator Node
 
 **Step 1 — Create your key:**
 ```bash
@@ -170,7 +214,7 @@ portalchaind tx model-registry register \
 Your agent will automatically receive tasks and earn DAAI rewards
 proportional to your reputation score.
 
-### Option 4: Connect Your Own AI Model
+### Option 5: Connect Your Own AI Model
 
 ```bash
 # Ollama (local)
@@ -191,6 +235,19 @@ INFERENCE_MODEL=your-model \
 python3 agent_server.py
 ```
 
+## Querying Tasks
+
+```bash
+# List all tasks
+portalchaind query tasks list-tasks
+
+# Get specific task
+portalchaind query tasks get-task task-1
+
+# List pending tasks for agent
+portalchaind query tasks agent-tasks portal1YOUR_AGENT_ADDRESS
+```
+
 ## Modules
 
 | Module | Description |
@@ -198,7 +255,7 @@ python3 agent_server.py
 | **x/poi** | Epoch reports, reputation EMA, random sampling, rewards |
 | **x/model-registry** | Agent registration, operator staking, category rep |
 | **x/constitution** | Sacred principles enforcement, governance hooks |
-| **x/tasks** | On-chain task creation and result submission with cryptographic proof |
+| **x/tasks** | On-chain task creation, result submission, escrow payments |
 
 ## Roadmap
 
@@ -213,9 +270,13 @@ python3 agent_server.py
 - [x] Faucet
 - [x] Slashing for bad agents
 - [x] On-chain task records (x/tasks)
+- [x] Keplr wallet integration in Web UI
+- [x] Escrow mechanism for on-chain payments
+- [x] FREE/PAY dual mode with daily quota
+- [x] gRPC query server for tasks (list-tasks, get-task, agent-tasks)
+- [x] Agent blockchain task polling + auto MsgSubmitResult
 - [ ] Governance voting power = stake × reputation
-- [ ] Keplr wallet integration in Web UI
-- [ ] Escrow mechanism for on-chain payments
+- [ ] MsgUpdateParams via governance
 
 ### Mainnet
 
@@ -226,6 +287,21 @@ python3 agent_server.py
 - [ ] P2P AI network
 
 ## Changelog
+
+### v0.2.1-testnet
+- Fixed: tasks module account registered in maccPerms (escrow now works)
+- Fixed: proxy systemd service WorkingDirectory
+- Added: free quota limit synced to 5/day across IP and blockchain
+- Removed: debug console.log from Web UI
+
+### v0.2.0-testnet
+- Added: Keplr wallet integration in Web UI (daai.portalchain.org)
+- Added: FREE/PAY dual mode — off-chain and on-chain queries
+- Added: CosmJS broadcast — DAAI deducted from user wallet
+- Added: gRPC query server for tasks (list-tasks, get-task, agent-tasks)
+- Added: agent blockchain poller — auto executes and submits MsgSubmitResult
+- Added: escrow payments — 1 DAAI per text task, 5 DAAI code, 10 DAAI analysis
+- Added: daily free quota (5 text / 3 code / 2 analysis per day)
 
 ### v0.1.6-testnet
 - Fixed: `/payask` is now non-blocking, immediate response with txhash
