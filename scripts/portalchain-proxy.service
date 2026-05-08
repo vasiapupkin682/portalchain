@@ -1,0 +1,14 @@
+[Unit]
+Description=PortalChain API Proxy
+After=network-online.target portalchain.service
+
+[Service]
+User=root
+WorkingDirectory=/root/portalchain
+EnvironmentFile=/root/portalchain/.env
+ExecStart=/usr/bin/python3 /root/portalchain/api_proxy.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

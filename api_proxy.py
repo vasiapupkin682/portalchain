@@ -12,7 +12,7 @@ RPC_URL = "http://127.0.0.1:26657"
 # =====================================================
 # FREE QUOTA — 10 requests per IP per day
 # =====================================================
-FREE_LIMIT = 10
+FREE_LIMIT = 5
 quota = {}  # { ip: { 'count': int, 'reset_at': timestamp } }
 
 def check_quota(ip: str) -> tuple[bool, int]:
@@ -162,11 +162,12 @@ class Handler(BaseHTTPRequestHandler):
                 data = json.loads(body)
                 query = data.get('query', '')
                 task_type = data.get('task_type', 'text')
+                paid = data.get('paid', False)
 
-                # Check free quota
+                # Check free quota (skip for paid requests)
                 ip = self.get_client_ip()
                 allowed, remaining = check_quota(ip)
-                if not allowed:
+                if not allowed and not paid:
                     self.send_response(429)
                     self.send_header('Content-Type', 'application/json')
                     self.send_cors_headers()
