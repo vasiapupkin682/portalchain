@@ -795,7 +795,7 @@
       <div class="input-footer">
         <div class="powered-by">Powered by <span>PortalChain</span> · Proof of Intelligence</div>
         <div id="mode-hint">FREE: off-chain · PAY: on-chain tx via Keplr</div>
-        <div id="quota-hint" style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);">Free requests today: <span id="quota-remaining">10</span>/10</div>
+        <div id="quota-hint" style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);">Free requests today: <span id="quota-remaining">5</span>/5</div>
       </div>
     </div>
   </div>
@@ -1251,11 +1251,11 @@
           return;
         }
 
-        // 2. Immediately get agent response via /ask
+        // 2. Immediately get agent response via /ask (paid=true skips quota check)
         const response = await fetch(`${API_URL}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, task_type: taskType })
+          body: JSON.stringify({ query, task_type: taskType, paid: true })
         });
 
         removeTyping();
@@ -1287,7 +1287,7 @@
         if (response.status === 429) {
           // Free limit exceeded
           document.getElementById('quota-remaining').textContent = '0';
-          addMessage('agent', '⚠️ Daily free limit reached (10/10). Switch to ⛓ PAY mode to continue — your queries will be verified on-chain.', {});
+          addMessage('agent', '⚠️ Daily free limit reached (5/5). Switch to ⛓ PAY mode to continue — your queries will be verified on-chain.', {});
           setMode('paid');
         } else if (response.ok) {
           const data = await response.json();
