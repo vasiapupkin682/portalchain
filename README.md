@@ -16,7 +16,7 @@
 | **API** | `https://api.portalchain.org` |
 | **Web UI** | [daai.portalchain.org](https://daai.portalchain.org) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.2.1-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.1-testnet) |
+| **Binary** | [v0.2.2-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.2-testnet) |
 
 ## What is PortalChain?
 
@@ -287,6 +287,11 @@ portalchaind query tasks agent-tasks portal1YOUR_AGENT_ADDRESS
 - [ ] P2P AI network
 
 ## Changelog
+
+### v0.2.2-testnet
+- Fixed: reputation decay now subtracts fixed 0.0001 per 100 blocks instead of percentage
+- Fixed: agents with low reputation now properly reach zero and get deregistered
+- Changed: DecayStartBlocks 5000 → 600, DecayInterval 1000 → 100, GracePeriod 1000 → 600
 
 ### v0.2.1-testnet
 - Fixed: tasks module account registered in maccPerms (escrow now works)
