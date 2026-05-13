@@ -92,9 +92,11 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		}
 
 		// Only decay if tasks existed in network — not agent's fault if no work
-		if totalTasksInNetwork == 0 {
-			continue
-		}
+		// TODO: re-enable on mainnet
+		_ = totalTasksInNetwork
+		// if totalTasksInNetwork == 0 {
+		// 	continue
+		// }
 
 		// Apply decay only every DecayInterval blocks
 		if (blocksSinceTask-DecayStartBlocks)%DecayInterval != 0 {
