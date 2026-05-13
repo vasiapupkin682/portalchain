@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	// Blocks without tasks before decay starts (~35 days at 6s/block)
-	DecayStartBlocks = int64(5000)
-	// Decay applied every N blocks of inactivity
-	DecayInterval = int64(1000)
+	// Blocks without tasks before decay starts (~1 hour at 6s/block)
+	DecayStartBlocks = int64(600)
+	// Decay applied every N blocks of inactivity (~10 min)
+	DecayInterval = int64(100)
 	// Minimum reputation before deregister
 	MinReputationThreshold = "0.0001"
-	// Grace period after registration before decay applies (~70 days)
-	NewAgentGracePeriod = int64(1000)
+	// Grace period after registration before decay applies (~1 hour)
+	NewAgentGracePeriod = int64(600)
 	// Assumed block time for Timestamp → block conversions (seconds)
 	decayBlockTimeSeconds = int64(6)
 )
@@ -73,7 +73,6 @@ func (k Keeper) ReturnStake(_ sdk.Context, _ string) {}
 // to avoid punishing agents when there is simply no work available.
 func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 	minRep, _ := sdk.NewDecFromStr(MinReputationThreshold)
-	decayFactor := sdk.NewDecWithPrec(95, 2) // -5% per decay interval
 
 	// Check if tasks existed in network during last DecayInterval blocks
 	totalTasksInNetwork := k.GetTotalTasksInPeriod(ctx, DecayInterval)
@@ -108,7 +107,12 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		}
 
 		oldValue := rep.Value
-		rep.Value = rep.Value.Mul(decayFactor)
+		// Fixed decay: subtract 0.0001 per interval
+		fixedDecay, _ := sdk.NewDecFromStr("0.0001")
+		rep.Value = rep.Value.Sub(fixedDecay)
+		if rep.Value.IsNegative() {
+			rep.Value = sdk.ZeroDec()
+		}
 		k.SetReputation(ctx, rep)
 
 		k.Logger(ctx).Info("reputation decay applied",
