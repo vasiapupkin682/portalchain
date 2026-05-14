@@ -12,7 +12,7 @@ const (
 	// Blocks without tasks before decay starts (~1 hour at 6s/block)
 	DecayStartBlocks = int64(600)
 	// Decay applied every N blocks of inactivity (~10 min)
-	DecayInterval = int64(100)
+	DecayInterval = int64(14400) // ~1 day at 6s/block
 	// Minimum reputation before deregister
 	MinReputationThreshold = "0.0001"
 	// Grace period after registration before decay applies (~1 hour)
@@ -111,9 +111,10 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		oldValue := rep.Value
 		// Proportional decay: 5% per interval with minimum 0.0001
 		// Agent deregisters in ~20 intervals regardless of reputation level
-		fivePercent := rep.Value.Mul(sdk.NewDecWithPrec(5, 2))
+		// 3.33% per day = deregistration in ~30 days for any reputation level
+		threePointThree := rep.Value.Mul(sdk.NewDecWithPrec(333, 4))
 		minDecay, _ := sdk.NewDecFromStr("0.0001")
-		decayAmount := fivePercent
+		decayAmount := threePointThree
 		if decayAmount.LT(minDecay) {
 			decayAmount = minDecay
 		}
