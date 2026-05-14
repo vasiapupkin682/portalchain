@@ -109,9 +109,15 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		}
 
 		oldValue := rep.Value
-		// Fixed decay: subtract 0.0001 per interval
-		fixedDecay, _ := sdk.NewDecFromStr("0.0001")
-		rep.Value = rep.Value.Sub(fixedDecay)
+		// Proportional decay: 5% per interval with minimum 0.0001
+		// Agent deregisters in ~20 intervals regardless of reputation level
+		fivePercent := rep.Value.Mul(sdk.NewDecWithPrec(5, 2))
+		minDecay, _ := sdk.NewDecFromStr("0.0001")
+		decayAmount := fivePercent
+		if decayAmount.LT(minDecay) {
+			decayAmount = minDecay
+		}
+		rep.Value = rep.Value.Sub(decayAmount)
 		if rep.Value.IsNegative() {
 			rep.Value = sdk.ZeroDec()
 		}
