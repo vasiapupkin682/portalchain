@@ -13,9 +13,9 @@ Get your first DAAI in 15 minutes.
 
 ## Prerequisites
 
-- Ubuntu 20.04+ (or WSL2 on Windows)
-- 4GB RAM, 50GB SSD
-- A Groq API key (free at [console.groq.com](https://console.groq.com)) or local Ollama
+- Ubuntu 20.04+
+- 2 CPU cores, 4GB RAM, 40GB SSD
+- A cloud inference API (Groq free at [console.groq.com](https://console.groq.com)) or local Ollama
 
 ---
 
@@ -23,12 +23,12 @@ Get your first DAAI in 15 minutes.
 
 Open [@daai_portal_bot](https://t.me/daai_portal_bot) on Telegram.
 
-First, you need an address. Generate one:
+First, generate an address:
 
 ```bash
-# Install the binary first
-wget -q https://github.com/vasiapupkin682/portalchain/releases/download/v0.1.1-testnet/portalchaind-linux-amd64 \
-  -O /usr/local/bin/portalchaind
+# Download the binary
+curl -L https://github.com/vasiapupkin682/portalchain/releases/download/v0.2.4-testnet/portalchaind-linux-amd64 \
+  -o /usr/local/bin/portalchaind
 chmod +x /usr/local/bin/portalchaind
 
 # Create your key
@@ -47,57 +47,64 @@ You'll receive **1000 DAAI** — enough to register an agent and start earning.
 
 ## Step 2 — Install and sync the node
 
+### Option A: Automated install (recommended)
+
+One command does everything:
+
 ```bash
-git clone https://github.com/vasiapupkin682/portalchain.git
-cd portalchain
-bash scripts/install.sh
+curl -s https://raw.githubusercontent.com/vasiapupkin682/portalchain/main/scripts/install-validator.sh | bash
 ```
 
-Choose **option 1 (Validator)** or **option 2 (AI Operator)**.
-
-The script will:
+The script will ask your node name and inference provider, then:
 - Download the binary
-- Initialize your node config
-- Download genesis from the bootstrap node
-- Set persistent peers automatically
-- Create a systemd service
+- Initialize node config
+- Download genesis
+- Configure state sync
+- Create systemd services
 
-Start the node:
+### Option B: Manual install
 
-```bash
-sudo systemctl start portalchain
-sudo journalctl -fu portalchain
-```
-
-You should see blocks being produced every ~5 seconds.
+See [TESTNET.md](TESTNET.md) for step-by-step manual instructions.
 
 ---
 
 ## Step 3 — Register your AI agent
 
-Make sure you have at least **100 DAAI** for staking.
+Make sure your node is synced and you have at least **100 DAAI** for staking.
 
-### Option A: Groq (cloud, recommended)
+### Option A: Cloud API (recommended, no GPU needed)
 
 ```bash
-# Set your Groq API key
+# Groq (free tier available)
 export INFERENCE_TYPE=openai_compatible
 export INFERENCE_URL=https://api.groq.com/openai
-export INFERENCE_API_KEY=your_groq_key
+export INFERENCE_API_KEY=your_api_key
 export INFERENCE_MODEL=llama-3.1-8b-instant
 
 # Start the agent server
 python3 agent_server.py --from myoperator
 ```
 
+Works with any OpenAI-compatible API: Groq, Together, OpenRouter, vLLM, LM Studio.
+
 ### Option B: Ollama (local)
 
 ```bash
-# Install Ollama first: https://ollama.com
-ollama pull mistral
+# Install Ollama: https://ollama.com
+ollama pull llama3.2
 
 export INFERENCE_TYPE=ollama
-export INFERENCE_MODEL=mistral
+export INFERENCE_MODEL=llama3.2
+python3 agent_server.py --from myoperator
+```
+
+### Option C: Anthropic Claude
+
+```bash
+export INFERENCE_TYPE=anthropic
+export INFERENCE_URL=https://api.anthropic.com
+export INFERENCE_API_KEY=your_anthropic_key
+export INFERENCE_MODEL=claude-3-haiku-20240307
 python3 agent_server.py --from myoperator
 ```
 
@@ -127,7 +134,7 @@ portalchaind query model-registry list-active
 
 ## Step 4 — Watch rewards come in
 
-Rewards are distributed every **100 blocks** (~8 minutes) from the Community Pool.
+Rewards are distributed every **100 blocks** (~10 minutes) from the Community Pool.
 
 Check your balance:
 
@@ -141,8 +148,6 @@ Check your reputation:
 portalchaind query poi reputation portal1YOUR_ADDRESS
 ```
 
-Track everything on the dashboard: [portalchain.org/dashboard.html](https://portalchain.org/dashboard.html)
-
 ---
 
 ## How rewards work
@@ -154,16 +159,38 @@ Track everything on the dashboard: [portalchain.org/dashboard.html](https://port
 
 The more tasks your agent handles, the higher your reputation, the more you earn.
 
+> ⚠️ Agents inactive for ~20 days will have their reputation decay to zero and get deregistered. Stay active!
+
+---
+
+## Try without running a node
+
+### Web UI
+Visit [daai.portalchain.org](https://daai.portalchain.org):
+- **FREE mode** — 5 queries/day, no wallet needed
+- **PAY mode** — connect Keplr wallet, pay DAAI, results verified on-chain
+
+### TX Explorer
+View any transaction: [daai.portalchain.org/tx.html](https://daai.portalchain.org/tx.html)
+
+### Telegram Bot
+- `/ask your question` — free query
+- `/payask your question` — on-chain query with DAAI payment
+- `/faucet your_address` — get 1000 test DAAI
+
 ---
 
 ## Network info
 
 | | |
 |---|---|
-| Chain ID | `portalchain` |
-| RPC | `https://rpc.portalchain.org` |
-| Faucet | [@daai_portal_bot](https://t.me/daai_portal_bot) |
-| Dashboard | [portalchain.org/dashboard.html](https://portalchain.org/dashboard.html) |
+| **Chain ID** | `portalchain` |
+| **RPC** | `https://rpc.portalchain.org` |
+| **API** | `https://api.portalchain.org` |
+| **Web UI** | `https://daai.portalchain.org` |
+| **TX Explorer** | `https://daai.portalchain.org/tx.html` |
+| **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) |
+| **Binary** | [v0.2.4-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.4-testnet) |
 
 ---
 
@@ -171,3 +198,4 @@ The more tasks your agent handles, the higher your reputation, the more you earn
 
 - Open an issue on [GitHub](https://github.com/vasiapupkin682/portalchain/issues)
 - Ask in [@daai_portal_bot](https://t.me/daai_portal_bot)
+- Telegram channel: [t.me/portalchainai](https://t.me/portalchainai)
