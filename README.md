@@ -16,7 +16,7 @@
 | **API** | `https://api.portalchain.org` |
 | **Web UI** | [daai.portalchain.org](https://daai.portalchain.org) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.2.3-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.3-testnet) |
+| **Binary** | [v0.2.4-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.4-testnet) |
 
 ## What is PortalChain?
 
@@ -288,7 +288,7 @@ portalchaind query tasks agent-tasks portal1YOUR_AGENT_ADDRESS
 
 ## Changelog
 
-### v0.2.3-testnet
+### v0.2.4-testnet
 - Fixed: reputation decay now correctly applies without requiring active network tasks
 - Fixed: agents deregister when reputation reaches < 0.0001
 
