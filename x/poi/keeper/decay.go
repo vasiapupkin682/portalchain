@@ -11,8 +11,8 @@ import (
 const (
 	// Blocks without tasks before decay starts (~1 hour at 6s/block)
 	DecayStartBlocks = int64(600)
-	// Decay applied every N blocks of inactivity (~10 min)
-	DecayInterval = int64(14400) // ~1 day at 6s/block
+	// Decay applied every N blocks of inactivity (~1 day at 6s/block)
+	DecayInterval = int64(14400)
 	// Minimum reputation before deregister
 	MinReputationThreshold = "0.0001"
 	// Grace period after registration before decay applies (~1 hour)
@@ -73,6 +73,7 @@ func (k Keeper) ReturnStake(_ sdk.Context, _ string) {}
 // to avoid punishing agents when there is simply no work available.
 func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 	minRep, _ := sdk.NewDecFromStr(MinReputationThreshold)
+	decayFactor := sdk.NewDecWithPrec(9667, 4) // ~3.33%/day decay
 
 	// Check if tasks existed in network during last DecayInterval blocks
 	totalTasksInNetwork := k.GetTotalTasksInPeriod(ctx, DecayInterval)
@@ -91,12 +92,11 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 			continue // agent is active
 		}
 
-		// Only decay if tasks existed in network — not agent's fault if no work
-		// TODO: re-enable on mainnet
-		_ = totalTasksInNetwork
+		// TESTNET: network tasks check disabled
 		// if totalTasksInNetwork == 0 {
 		// 	continue
 		// }
+		_ = totalTasksInNetwork
 
 		// Apply decay only every DecayInterval blocks
 		if (blocksSinceTask-DecayStartBlocks)%DecayInterval != 0 {
@@ -109,19 +109,7 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 		}
 
 		oldValue := rep.Value
-		// Proportional decay: 5% per interval with minimum 0.0001
-		// Agent deregisters in ~20 intervals regardless of reputation level
-		// 3.33% per day = deregistration in ~30 days for any reputation level
-		threePointThree := rep.Value.Mul(sdk.NewDecWithPrec(333, 4))
-		minDecay, _ := sdk.NewDecFromStr("0.0001")
-		decayAmount := threePointThree
-		if decayAmount.LT(minDecay) {
-			decayAmount = minDecay
-		}
-		rep.Value = rep.Value.Sub(decayAmount)
-		if rep.Value.IsNegative() {
-			rep.Value = sdk.ZeroDec()
-		}
+		rep.Value = rep.Value.Mul(decayFactor)
 		k.SetReputation(ctx, rep)
 
 		k.Logger(ctx).Info("reputation decay applied",

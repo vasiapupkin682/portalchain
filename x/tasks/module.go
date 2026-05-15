@@ -44,7 +44,11 @@ func (AppModuleBasic) RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 }
 
 func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
-	return json.RawMessage("{}")
+	params := types.DefaultParams()
+	bz, _ := json.Marshal(map[string]interface{}{
+		"params": params,
+	})
+	return bz
 }
 
 func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
@@ -86,21 +90,38 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
-func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
-	var genState map[string]interface{}
+func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
+	var genState struct {
+		Params *types.Params `json:"params"`
+	}
 	if err := json.Unmarshal(gs, &genState); err != nil {
 		panic(fmt.Errorf("failed to unmarshal %s genesis: %w", types.ModuleName, err))
+	}
+	if genState.Params != nil {
+		am.keeper.SetParams(ctx, *genState.Params)
+	} else {
+		am.keeper.SetParams(ctx, types.DefaultParams())
 	}
 	return []abci.ValidatorUpdate{}
 }
 
-func (am AppModule) ExportGenesis(_ sdk.Context, _ codec.JSONCodec) json.RawMessage {
-	return json.RawMessage("{}")
+func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMessage {
+	params := am.keeper.GetParams(ctx)
+	bz, _ := json.Marshal(map[string]interface{}{
+		"params": params,
+	})
+	return bz
 }
 
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
-func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
+func (am AppModule) BeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock) {
+	// Ensure params are set (migration for chains started without tasks genesis)
+	params := am.keeper.GetParams(ctx)
+	if params.PricePerText.IsZero() {
+		am.keeper.SetParams(ctx, types.DefaultParams())
+	}
+}
 
 func (am AppModule) EndBlock(ctx sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
 	// Expire tasks past deadline
