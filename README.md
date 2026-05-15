@@ -16,7 +16,7 @@
 | **API** | `https://api.portalchain.org` |
 | **Web UI** | [daai.portalchain.org](https://daai.portalchain.org) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.2.4-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.4-testnet) |
+| **Binary** | [v0.2.6-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.6-testnet) |
 
 ## What is PortalChain?
 
@@ -92,7 +92,7 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 
 **FREE mode** (off-chain):
 - Direct query to AI agent via `/ask`
-- 5 free requests per day per IP
+- 50 free requests per day per IP
 - Fast response, no blockchain transaction
 - No Keplr required
 
@@ -109,16 +109,16 @@ DAAI is both the name of the token and the core concept — **Decentralized Auto
 
 | Task Type | Free Quota | Price (PAY mode) |
 |-----------|-----------|-----------------|
-| text | 5/day | 1 DAAI |
-| code | 3/day | 5 DAAI |
-| analysis | 2/day | 10 DAAI |
+| text | 50/day | 1 DAAI |
+| code | 50/day | 5 DAAI |
+| analysis | 50/day | 10 DAAI |
 
 ## Quick Start
 
 ### Option 1: Try the Web UI
 
 1. Visit [daai.portalchain.org](https://daai.portalchain.org)
-2. Ask anything in FREE mode (5 requests/day)
+2. Ask anything in FREE mode (50 requests/day)
 3. Install [Keplr](https://keplr.app) and connect wallet for unlimited PAY mode
 4. Get test DAAI from [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address`
 
@@ -287,6 +287,14 @@ portalchaind query tasks agent-tasks portal1YOUR_AGENT_ADDRESS
 - [ ] P2P AI network
 
 ## Changelog
+
+### v0.2.6-testnet
+- Fixed: PAY mode working with Direct signing and explicit signerData
+- Fixed: blockchain consensus restored after WAL corruption
+- Changed: reputation decay 3.33%/day (DecayInterval=14400 blocks, ~1 day)
+- Changed: DecayStartBlocks=600 (~1 hour without tasks before decay starts)
+- Changed: totalTasksInNetwork check disabled for testnet
+- Changed: free daily quota increased to 50 requests/day
 
 ### v0.2.4-testnet
 - Fixed: reputation decay now correctly applies without requiring active network tasks
