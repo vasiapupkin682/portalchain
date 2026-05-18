@@ -1,0 +1,29 @@
+syntax = "proto3";
+package portalchain.tasks;
+option go_package = "portalchain/x/tasks/types";
+
+service Msg {
+  rpc CreateTask(MsgCreateTask) returns (MsgCreateTaskResponse);
+  rpc SubmitResult(MsgSubmitResult) returns (MsgSubmitResultResponse);
+}
+
+message MsgCreateTask {
+  string creator = 1;
+  string query_hash = 2;
+  string query_url = 3;
+  string task_type = 4;
+}
+
+message MsgCreateTaskResponse {
+  string task_id = 1;
+  string agent = 2;
+}
+
+message MsgSubmitResult {
+  string agent = 1;
+  string task_id = 2;
+  string result_hash = 3;
+  string result_url = 4;
+}
+
+message MsgSubmitResultResponse {}
