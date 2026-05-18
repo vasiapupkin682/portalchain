@@ -49,7 +49,7 @@ func (s *msgServer) CreateTask(goCtx context.Context, msg *types.MsgCreateTask) 
     if len(models) == 0 {
         return nil, types.ErrNoAgentsAvailable
     }
-    agent := selectAgent(models, msg.TaskType)
+    agent := selectAgent(ctx, models, msg.TaskType)
 
     // Create task
     taskID := s.NextTaskID(ctx)
@@ -128,7 +128,7 @@ func (s *msgServer) SubmitResult(goCtx context.Context, msg *types.MsgSubmitResu
     return &types.MsgSubmitResultResponse{}, nil
 }
 
-func selectAgent(models []modelregistrytypes.ModelRecord, taskType string) string {
+func selectAgent(ctx sdk.Context, models []modelregistrytypes.ModelRecord, taskType string) string {
     // Simple weighted random by category reputation
     type weighted struct {
         endpoint string
@@ -149,7 +149,9 @@ func selectAgent(models []modelregistrytypes.ModelRecord, taskType string) strin
     }
     total := 0.0
     for _, c := range candidates { total += c.weight }
-    r := rand.Float64() * total
+    seed := int64(ctx.BlockHeight()) + ctx.BlockTime().UnixNano()
+    rng := rand.New(rand.NewSource(seed))
+    r := rng.Float64() * total
     cumulative := 0.0
     for _, c := range candidates {
         cumulative += c.weight
