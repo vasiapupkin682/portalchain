@@ -16,7 +16,7 @@
 | **API** | `https://api.portalchain.org` |
 | **Web UI** | [daai.portalchain.org](https://daai.portalchain.org) |
 | **Faucet** | [@daai_portal_bot](https://t.me/daai_portal_bot) — `/faucet your_address` |
-| **Binary** | [v0.2.6-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.6-testnet) |
+| **Binary** | [v0.2.7-testnet](https://github.com/vasiapupkin682/portalchain/releases/tag/v0.2.7-testnet) |
 
 ## What is PortalChain?
 
@@ -287,6 +287,10 @@ portalchaind query tasks agent-tasks portal1YOUR_AGENT_ADDRESS
 - [ ] P2P AI network
 
 ## Changelog
+
+### v0.2.7-testnet
+- Fixed: deterministic agent selection in selectAgent() — uses block height + block time as seed instead of global rand.Float64()
+- Fixed: consensus AppHash mismatch between nodes caused by non-deterministic randomness
 
 ### v0.2.6-testnet
 - Fixed: PAY mode working with Direct signing and explicit signerData
